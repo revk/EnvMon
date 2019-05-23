@@ -26,8 +26,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="11.385356"
-     inkscape:cx="71.489766"
-     inkscape:cy="53.489766"
+     inkscape:cx="55.679983"
+     inkscape:cy="25.383485"
      inkscape:document-units="mm"
      inkscape:current-layer="layer7"
      showgrid="true"
@@ -221,9 +221,9 @@
     <path
        id="path1139"
        style="opacity:1;fill:none;fill-opacity:0.50196078;fill-rule:evenodd;stroke:#ff0000;stroke-width:0.30000001;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
-       d="m 25.250003,-10.479983 h 2.54 m 5.08,2.5400009 v -2.5399999 h -5.079999 v 2.5399996 m 10.16,3e-7 h 2.539999 m -22.86,1.9049996 h 2.54 v -4.4450005 h 2.54 m 15.240001,2.5400009 v -6.3500009 l -22.860001,10e-7 v 3.809999 m 0,4.4450005 h 2.54 v -6.3500005 h 17.780001 v 4.4450017 M 12.550003,-10.479983 v 4.4450005 m -2.54,-4.4450005 v 4.4450005 m 5.08,0 H 8.1050027 v -4.4450005 h 6.9850003 m 27.940001,-5.715 -30.480001,-0.284791 v -14.955209 m 10.16,27.3050002 v -6.3500002 h 2.54 v 4.4450005 l 2.54,1e-7 1e-6,-1.905 10.160001,7e-7 v 1.9050002 l 2.54,-4e-7 -10e-7,-4.4450011 h -0.635002 l 2e-6,-3.175 h 3.175"
+       d="m 25.250003,-10.479983 4.887132,0 m 2.732868,2.5400009 v -2.5399999 l -2.732868,-1e-6 v 2.5399998 l 7.81287,1.5e-6 v 1.9050002 l 2.54,-4e-7 -10e-7,-4.4450011 h -0.635002 l 2e-6,-3.175 h 3.175 m -5.08,5.7150009 h 2.539999 m -22.86,1.9049996 h 2.54 v -4.4450005 h 2.54 m 15.240001,2.5400009 v -6.3500009 l -22.860001,10e-7 v 3.809999 m 0,4.4450005 h 2.54 v -6.3500005 h 17.780001 v 4.4450017 M 12.550003,-10.479983 v 4.4450005 m -2.54,-4.4450005 v 4.4450005 m 5.08,0 H 8.1050027 v -4.4450005 h 6.9850003 m 27.940001,-5.715 -30.480001,-0.284791 v -14.955209 m 10.16,27.3050002 v -6.3500002 h 2.54 l 0,6.3499999"
        inkscape:connector-curvature="0"
-       sodipodi:nodetypes="ccccccccccccccccccccccccccccccccccccccccccccc" />
+       sodipodi:nodetypes="ccccccccccccccccccccccccccccccccccccccccccc" />
   </g>
   <g
      transform="translate(-5.8350029,32.069984)"
