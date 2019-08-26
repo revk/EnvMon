@@ -46,7 +46,7 @@ app_main ()
       i2c_driver_delete (port);
       return NULL;
    }
-   i2c_set_timeout (port, 80000);       // 1ms?
+   i2c_set_timeout (port, 80000);       // 1ms? allow for clock stretching
    i2c_cmd_handle_t i;
 
    while (1)
@@ -60,7 +60,7 @@ app_main ()
       i2c_master_write_byte (i, 0x00, ACK_CHECK_EN);
       i2c_master_write_byte (i, 0x81, ACK_CHECK_EN);    // CRC
       i2c_master_stop (i);
-      esp_err_t err = i2c_master_cmd_begin (port, i, 100);
+      esp_err_t err = i2c_master_cmd_begin (port, i, 10 / portTICK_PERIOD_MS);
       i2c_cmd_link_delete (i);
       if (err)
          ESP_LOGI (TAG, "Tx StartMeasure %s", esp_err_to_name (err));
@@ -78,7 +78,7 @@ app_main ()
       i2c_master_write_byte (i, 0x02, ACK_CHECK_EN);    // 0202 get reading state
       i2c_master_write_byte (i, 0x02, ACK_CHECK_EN);
       i2c_master_stop (i);
-      esp_err_t err = i2c_master_cmd_begin (port, i, 100);
+      esp_err_t err = i2c_master_cmd_begin (port, i, 10 / portTICK_PERIOD_MS);
       i2c_cmd_link_delete (i);
       if (err)
          ESP_LOGI (TAG, "Tx GetReady %s", esp_err_to_name (err));
@@ -91,7 +91,7 @@ app_main ()
          i2c_master_read (i, buf, 2, ACK_VAL);
          i2c_master_read_byte (i, buf + 2, NACK_VAL);
          i2c_master_stop (i);
-         esp_err_t err = i2c_master_cmd_begin (port, i, 100);
+         esp_err_t err = i2c_master_cmd_begin (port, i, 10 / portTICK_PERIOD_MS);
          i2c_cmd_link_delete (i);
          if (err)
             ESP_LOGI (TAG, "Rx GetReady %s", esp_err_to_name (err));
@@ -103,7 +103,7 @@ app_main ()
             i2c_master_write_byte (i, 0x03, ACK_CHECK_EN);      // 0300 Read data
             i2c_master_write_byte (i, 0x00, ACK_CHECK_EN);
             i2c_master_stop (i);
-            esp_err_t err = i2c_master_cmd_begin (port, i, 100);
+            esp_err_t err = i2c_master_cmd_begin (port, i, 10 / portTICK_PERIOD_MS);
             i2c_cmd_link_delete (i);
             if (err)
                ESP_LOGI (TAG, "Tx GetData %s", esp_err_to_name (err));
@@ -116,7 +116,7 @@ app_main ()
                i2c_master_read (i, buf, 17, ACK_VAL);
                i2c_master_read_byte (i, buf + 17, NACK_VAL);
                i2c_master_stop (i);
-               esp_err_t err = i2c_master_cmd_begin (port, i, 100);
+               esp_err_t err = i2c_master_cmd_begin (port, i, 10 / portTICK_PERIOD_MS);
                i2c_cmd_link_delete (i);
                if (err)
                   ESP_LOGI (TAG, "Rx Data %s", esp_err_to_name (err));
