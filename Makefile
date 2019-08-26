@@ -7,3 +7,6 @@ PROJECT_NAME := RevKCO2
 
 include $(IDF_PATH)/make/project.mk
 
+update:
+	git submodule update --remote --merge
+	git commit -a -m "Library update"
