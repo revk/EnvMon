@@ -71,7 +71,7 @@ app_main ()
 
    while (1)
    {
-      usleep (100);
+      usleep (100000);
       i = i2c_cmd_link_create ();
       i2c_master_start (i);
       i2c_master_write_byte (i, (address << 1), ACK_CHECK_EN);
