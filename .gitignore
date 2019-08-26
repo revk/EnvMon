@@ -1,4 +1,10 @@
 *~
 *.o
 .DS_Store
-RevKCO2/RevKCO2.ino.generic.bin
+*/*.bin
+*.old
+*/*.old
+*/*/*.old
+secure_boot_signing_key.pem
+build/*
+sdkconfig
