@@ -71,8 +71,7 @@ app_main ()
 
    while (1)
    {
-      //usleep (100);
-      sleep (1);
+      usleep (100);
       i = i2c_cmd_link_create ();
       i2c_master_start (i);
       i2c_master_write_byte (i, (address << 1), ACK_CHECK_EN);
@@ -123,7 +122,24 @@ app_main ()
                   ESP_LOGI (TAG, "Rx Data %s", esp_err_to_name (err));
                else
                {
-                  ESP_LOG_BUFFER_HEX_LEVEL (TAG, buf, 18, ESP_LOG_INFO);
+                  //ESP_LOG_BUFFER_HEX_LEVEL (TAG, buf, 18, ESP_LOG_INFO);
+                  uint8_t d[4];
+                  d[3] = buf[0];
+                  d[2] = buf[1];
+                  d[1] = buf[3];
+                  d[0] = buf[4];
+                  float co2 = *(float *) d;
+                  d[3] = buf[6];
+                  d[2] = buf[7];
+                  d[1] = buf[9];
+                  d[0] = buf[10];
+                  float t = *(float *) d;
+                  d[3] = buf[12];
+                  d[2] = buf[13];
+                  d[1] = buf[15];
+                  d[0] = buf[16];
+                  float rh = *(float *) d;
+                  revk_info (TAG, "CO2=%.2f T=%.2f RH=%.2f", co2, t, rh);
                }
             }
          }
