@@ -86,6 +86,7 @@ app_main ()
       else
       {
          uint8_t buf[3];
+         i = i2c_cmd_link_create ();
          i2c_master_start (i);
          i2c_master_write_byte (i, (address << 1) + 1, ACK_CHECK_EN);
          i2c_master_read (i, buf, 2, ACK_VAL);
@@ -97,6 +98,7 @@ app_main ()
             ESP_LOGI (TAG, "Rx GetReady %s", esp_err_to_name (err));
          else if ((buf[0] << 8) + buf[1] == 1)
          {
+            i = i2c_cmd_link_create ();
             i2c_master_start (i);
             i2c_master_write_byte (i, (address << 1), ACK_CHECK_EN);
             i2c_master_write_byte (i, 0x03, ACK_CHECK_EN);      // 0300 Read data
@@ -109,6 +111,7 @@ app_main ()
             else
             {
                uint8_t buf[18];
+               i = i2c_cmd_link_create ();
                i2c_master_start (i);
                i2c_master_write_byte (i, (address << 1) + 1, ACK_CHECK_EN);
                i2c_master_read (i, buf, 17, ACK_VAL);
@@ -120,7 +123,7 @@ app_main ()
                   ESP_LOGI (TAG, "Rx Data %s", esp_err_to_name (err));
                else
                {
-		        ESP_LOG_BUFFER_HEX_LEVEL (TAG, buf, 18, ESP_LOG_INFO);
+                  ESP_LOG_BUFFER_HEX_LEVEL (TAG, buf, 18, ESP_LOG_INFO);
                }
             }
          }
