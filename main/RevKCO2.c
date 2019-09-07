@@ -241,7 +241,7 @@ oled_task (void *p)
    }
 
    memset (oled, 0x00, sizeof (oled));  // Blank
-   text5 (0, 0, "www.me.uk");
+   text5 (25, 0, "www.me.uk");
 
    char running = 0;
    while (1)
@@ -428,7 +428,7 @@ co2_task (void *p)
                   if (lastrh > 0)
                   {
                      sprintf (temp, "%3d", (int) lastrh);
-                     x = text15 (0, y, temp);
+                     x = text15 (5, y, temp);
                      x = text10 (x, y, "%");
                      x = text5 (x, y, "R/H");
                   }
@@ -562,7 +562,7 @@ app_main ()
       }
       char temp[30];
       sprintf (temp, "%04d-%02d-%02d %02d:%02dZ", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min);
-      text5 (0, 0, temp);
+      text5 (22, 0, temp);
       sleep (60 - t->tm_sec);
    }
 }
