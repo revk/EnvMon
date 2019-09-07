@@ -113,13 +113,11 @@ app_main ()
       // TODO
    }
    OneWireBus *owb = NULL;
+      owb_rmt_driver_info rmt_driver_info;
    DS18B20_Info *ds18b20s[MAX_OWB] = { 0 };
    int num_owb = 0;
    if (ds18b20 >= 0)
    {                            // DS18B20 init
-	   printf("OWB %d\n",ds18b20);
-	   esp_log_level_set("owb", ESP_LOG_DEBUG);
-      owb_rmt_driver_info rmt_driver_info;
       owb = owb_rmt_initialize (&rmt_driver_info, ds18b20, RMT_CHANNEL_1, RMT_CHANNEL_0);
       owb_use_crc (owb, true);  // enable CRC check for ROM code
       OneWireBus_ROMCode device_rom_codes[MAX_OWB] = { 0 };
@@ -136,7 +134,44 @@ app_main ()
       }
       if (!num_owb)
          revk_error ("temp", "No OWB devices");
-      for (int i = 0; i < num_owb; ++i)
+#if 0
+      if (num_owb == 1)
+      {
+         OneWireBus_ROMCode rom_code;
+         owb_status status = owb_read_rom (owb, &rom_code);
+         if (status == OWB_STATUS_OK)
+         {
+            char rom_code_s[OWB_ROM_CODE_STRING_LENGTH];
+            owb_string_from_rom_code (rom_code, rom_code_s, sizeof (rom_code_s));
+            printf ("Single device %s present\n", rom_code_s);
+         } else
+         {
+            printf ("An error occurred reading ROM code: %d", status);
+         }
+      } else
+      {
+         // Search for a known ROM code (LSB first):
+         // For example: 0x1502162ca5b2ee28
+         OneWireBus_ROMCode known_device = {
+            .fields.family = {0x28},
+            .fields.serial_number = {0xee, 0xb2, 0xa5, 0x2c, 0x16, 0x02},
+            .fields.crc = {0x15},
+         };
+         char rom_code_s[OWB_ROM_CODE_STRING_LENGTH];
+         owb_string_from_rom_code (known_device, rom_code_s, sizeof (rom_code_s));
+         bool is_present = false;
+
+         owb_status search_status = owb_verify_rom (owb, known_device, &is_present);
+         if (search_status == OWB_STATUS_OK)
+         {
+            printf ("Device %s is %s\n", rom_code_s, is_present ? "present" : "not present");
+         } else
+         {
+            printf ("An error occurred searching for known device: %d", search_status);
+         }
+      }
+#endif
+      for (int i = 0; i < num_owb; i++)
       {
          DS18B20_Info *ds18b20_info = ds18b20_malloc ();        // heap allocation
          ds18b20s[i] = ds18b20_info;
