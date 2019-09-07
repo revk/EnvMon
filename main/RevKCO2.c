@@ -31,6 +31,36 @@ const char TAG[] = "CO2";
 #define s8(n,d)	int8_t n;
 settings
 #undef s8
+// Control byte
+#define OLED_CONTROL_BYTE_CMD_SINGLE    0x80
+#define OLED_CONTROL_BYTE_CMD_STREAM    0x00
+#define OLED_CONTROL_BYTE_DATA_STREAM   0x40
+// Fundamental commands (pg.28)
+#define OLED_CMD_SET_CONTRAST           0x81    // follow with 0x7F
+#define OLED_CMD_DISPLAY_RAM            0xA4
+#define OLED_CMD_DISPLAY_ALLON          0xA5
+#define OLED_CMD_DISPLAY_NORMAL         0xA6
+#define OLED_CMD_DISPLAY_INVERTED       0xA7
+#define OLED_CMD_DISPLAY_OFF            0xAE
+#define OLED_CMD_DISPLAY_ON             0xAF
+// Addressing Command Table (pg.30)
+#define OLED_CMD_SET_MEMORY_ADDR_MODE   0x20    // follow with 0x00 = HORZ mode = Behave like a KS108 graphic LCD
+#define OLED_CMD_SET_COLUMN_RANGE       0x21    // can be used only in HORZ/VERT mode - follow with 0x00 and 0x7F = COL127
+#define OLED_CMD_SET_PAGE_RANGE         0x22    // can be used only in HORZ/VERT mode - follow with 0x00 and 0x07 = PAGE7
+// Hardware Config (pg.31)
+#define OLED_CMD_SET_DISPLAY_START_LINE 0x40
+#define OLED_CMD_SET_SEGMENT_REMAP      0xA1
+#define OLED_CMD_SET_MUX_RATIO          0xA8    // follow with 0x3F = 64 MUX
+#define OLED_CMD_SET_COM_SCAN_MODE      0xC8
+#define OLED_CMD_SET_DISPLAY_OFFSET     0xD3    // follow with 0x00
+#define OLED_CMD_SET_COM_PIN_MAP        0xDA    // follow with 0x12
+#define OLED_CMD_NOP                    0xE3    // NOP
+// Timing and Driving Scheme (pg.32)
+#define OLED_CMD_SET_DISPLAY_CLK_DIV    0xD5    // follow with 0x80
+#define OLED_CMD_SET_PRECHARGE          0xD9    // follow with 0xF1
+#define OLED_CMD_SET_VCOMH_DESELCT      0xDB    // follow with 0x30
+// Charge Pump (pg.62)
+#define OLED_CMD_SET_CHARGE_PUMP        0x8D    // follow with 0x14
 static float lastco2 = 0;
 static float lastrh = 0;
 static float lasttemp = 0;
@@ -84,11 +114,48 @@ app_command (const char *tag, unsigned int len, const unsigned char *value)
 void
 oled_task (void *p)
 {
+   int try = 10;
+   esp_err_t e;
+   while (try--)
+   {
+      if (i2c_mutex)
+         xSemaphoreTake (i2c_mutex, portMAX_DELAY);
+      i2c_cmd_handle_t t = i2c_cmd_link_create ();
+
+      i2c_master_start (t);
+      i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
+      i2c_master_write_byte (t, OLED_CONTROL_BYTE_CMD_STREAM, true);
+
+      i2c_master_write_byte (t, OLED_CMD_SET_CHARGE_PUMP, true);
+      i2c_master_write_byte (t, 0x14, true);
+
+      i2c_master_write_byte (t, OLED_CMD_SET_SEGMENT_REMAP, true);      // reverse left-right mapping
+      i2c_master_write_byte (t, OLED_CMD_SET_COM_SCAN_MODE, true);      // reverse up-bottom mapping
+
+      i2c_master_write_byte (t, OLED_CMD_DISPLAY_ON, true);
+      i2c_master_stop (t);
+
+      e = i2c_master_cmd_begin (oledport, t, 10 / portTICK_PERIOD_MS);
+      i2c_cmd_link_delete (t);
+      if (i2c_mutex)
+         xSemaphoreGive (i2c_mutex);
+      if (!e)
+         break;
+      sleep (1);
+   }
+   if (e)
+   {
+      revk_error ("OLED", "Configuration failed %s", esp_err_to_name (e));
+      vTaskDelete (NULL);
+      return;
+   }
+
    while (1)
    {
       sleep (1);
       if (i2c_mutex)
          xSemaphoreTake (i2c_mutex, portMAX_DELAY);
+
       // TODO
       if (i2c_mutex)
          xSemaphoreGive (i2c_mutex);
@@ -99,8 +166,9 @@ void
 co2_task (void *p)
 {
    p = p;
-   // Set up
-   while (1)
+   int try = 10;
+   esp_err_t e;
+   while (try--)
    {
       if (i2c_mutex)
          xSemaphoreTake (i2c_mutex, portMAX_DELAY);
@@ -113,15 +181,19 @@ co2_task (void *p)
       i2c_master_write_byte (i, 0x00, ACK_CHECK_EN);
       i2c_master_write_byte (i, 0x81, ACK_CHECK_EN);    // CRC
       i2c_master_stop (i);
-      esp_err_t err = i2c_master_cmd_begin (co2port, i, 10 / portTICK_PERIOD_MS);
+      e = i2c_master_cmd_begin (co2port, i, 10 / portTICK_PERIOD_MS);
       i2c_cmd_link_delete (i);
       if (i2c_mutex)
          xSemaphoreGive (i2c_mutex);
-      if (err)
-         ESP_LOGI (TAG, "Tx StartMeasure %s", esp_err_to_name (err));
-      else
+      if (!e)
          break;
-      sleep (1);                // try again
+      sleep (1);
+   }
+   if (e)
+   {                            // failed
+      revk_error ("CO2", "Configuration failed %s", esp_err_to_name (e));
+      vTaskDelete (NULL);
+      return;
    }
    // Get measurements
    while (1)
