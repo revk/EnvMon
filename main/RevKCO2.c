@@ -96,13 +96,19 @@ oled_task (void *p)
       if (i2c_mutex)
          xSemaphoreTake (i2c_mutex, portMAX_DELAY);
       i2c_cmd_handle_t t = i2c_cmd_link_create ();
-
       i2c_master_start (t);
       i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
-      i2c_master_write_byte (t, 0x80, true);    // Cmd
+      i2c_master_write_byte (t, 0x00, true);    // Cmds
+      i2c_master_write_byte (t, 0x15, true);    // Col
+      i2c_master_write_byte (t, 0x00, true);    // 0
+      i2c_master_write_byte (t, 0x7F, true);    // 127
+      i2c_master_write_byte (t, 0x75, true);    // Row
+      i2c_master_write_byte (t, 0x00, true);    // 0
+      i2c_master_write_byte (t, 0x7F, true);    // 127
+      i2c_master_write_byte (t, 0xA0, true);    // Remap
+      i2c_master_write_byte (t, 0x41, true);    // 
       i2c_master_write_byte (t, 0xAF, true);    // On
       i2c_master_stop (t);
-
       e = i2c_master_cmd_begin (oledport, t, 10 / portTICK_PERIOD_MS);
       i2c_cmd_link_delete (t);
       if (i2c_mutex)
@@ -118,27 +124,25 @@ oled_task (void *p)
       return;
    }
 
-   memset (oled, 0, sizeof (oled));
+   memset (oled, 0x00, sizeof (oled));
 
 #if 1
    {                            // TODO
-      int x,
-        y;
-      for (x = 0; x < OLEDW; x++)
-         for (y = 0; y < OLEDH; y++)
+      for (int x = 0; x < OLEDW; x++)
+         for (int y = 0; y < OLEDH; y++)
             if ((x - OLEDW / 2) * (x - OLEDW / 2) + (y - OLEDH / 2) * (y - OLEDH / 2) > OLEDW * OLEDH / 4)
-               oled[(y * OLEDW + x) * OLEDB / 8] = (15 << ((x & 1) ? 0 : 4));
+               oled[y * OLEDW * OLEDB / 8 + x * OLEDB / 8] |= (15 << ((x & 1) ? 0 : 4));
    }
 #endif
 
    while (1)
    {
-      sleep (1);
       for (int y = 0; y < OLEDH; y++)
       {
          if (i2c_mutex)
             xSemaphoreTake (i2c_mutex, portMAX_DELAY);
          i2c_cmd_handle_t t = i2c_cmd_link_create ();
+         i2c_master_start (t);
          i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
          i2c_master_write_byte (t, 0x40, true); // Data
          for (int p = 0; p < OLEDW * OLEDB / 8; p++)
@@ -148,7 +152,10 @@ oled_task (void *p)
          i2c_cmd_link_delete (t);
          if (i2c_mutex)
             xSemaphoreGive (i2c_mutex);
+         if (e)
+            revk_error ("OLED", "Data failed %s", esp_err_to_name (e));
       }
+      sleep (1);
    }
 }
 
