@@ -3,7 +3,7 @@
 cd /tmp/5x9
 /projects/tools/bin/5x9 --style=JTD
 foreach d (0.96 1.92 2.88 3.84)
-	inkscape --export-area=0:100:499:999 -echar.png -d$d u0020.svg
+	inkscape --export-area=0:100:500:1000 -echar.png -d$d u0020.svg
 	setenv W `identify -format '%W' char.png`
 	setenv H `identify -format '%H' char.png`
 	set f="font$W.h"

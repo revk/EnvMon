@@ -91,6 +91,8 @@ app_command (const char *tag, unsigned int len, const unsigned char *value)
 #define	OLEDH	128
 #define	OLEDB	4
 static uint8_t oled[OLEDW * OLEDH * OLEDB / 8];
+static char oledchanged = 1;
+
 static inline void
 oledset (int x, int y, uint8_t v)
 {
@@ -102,14 +104,20 @@ oledset (int x, int y, uint8_t v)
    if (v > m)
       v = m;
    int s = ((8 / OLEDB) - 1 - (x % (8 / OLEDB))) * OLEDB;
-   oled[y * OLEDW * OLEDB / 8 + x * OLEDB / 8] = ((oled[y * OLEDW * OLEDB / 8 + x * OLEDB / 8] & ~(m << s)) | (v << s));
+   int o = y * OLEDW * OLEDB / 8 + x * OLEDB / 8;
+   uint8_t new = ((oled[o] & ~(m << s)) | (v << s));
+   if (oled[o] == new)
+      return;
+   oled[o] = new;
+   oledchanged = 1;
 }
 
-void
+int
 text5 (int x, int y, char *t)
 {
    if (!text_mutex)
-      return;
+      return x;
+   y -= sizeof (font5[0]) / sizeof (font5[0][0]) * 2 / 9;
    xSemaphoreTake (text_mutex, portMAX_DELAY);
    while (*t)
    {
@@ -123,18 +131,21 @@ text5 (int x, int y, char *t)
          for (int dx = 0; dx < 5; dx++)
             oledset (x + dx, y + sizeof (font5[0]) / sizeof (font5[0][0]) - 1 - dy, 15 - (font5[c][dy][dx] >> 4));
       x += 5;
-      for (int dy = 0; dy < sizeof (font5[0]) / sizeof (font5[0][0]); dy++)
-         oledset (x, y + dy, 0);
-      x++;
+      for (int dx = 0; dx < 1; dx++)
+         for (int dy = 0; dy < sizeof (font5[0]) / sizeof (font5[0][0]); dy++)
+            oledset (x + dx, y + dy, 0);
+      x += 1;
    }
    xSemaphoreGive (text_mutex);
+   return x;
 }
 
-void
+int
 text10 (int x, int y, char *t)
 {
    if (!text_mutex)
-      return;
+      return x;
+   y -= sizeof (font10[0]) / sizeof (font10[0][0]) * 2 / 9;
    xSemaphoreTake (text_mutex, portMAX_DELAY);
    while (*t)
    {
@@ -148,18 +159,21 @@ text10 (int x, int y, char *t)
          for (int dx = 0; dx < 10; dx++)
             oledset (x + dx, y + sizeof (font10[0]) / sizeof (font10[0][0]) - 1 - dy, 15 - (font10[c][dy][dx] >> 4));
       x += 10;
-      for (int dy = 0; dy < sizeof (font10[0]) / sizeof (font10[0][0]); dy++)
-         oledset (x, y + dy, 0);
-      x++;
+      for (int dx = 0; dx < 2; dx++)
+         for (int dy = 0; dy < sizeof (font10[0]) / sizeof (font10[0][0]); dy++)
+            oledset (x + dx, y + dy, 0);
+      x += 2;
    }
    xSemaphoreGive (text_mutex);
+   return x;
 }
 
-void
+int
 text15 (int x, int y, char *t)
 {
    if (!text_mutex)
-      return;
+      return x;
+   y -= sizeof (font15[0]) / sizeof (font15[0][0]) * 2 / 9;
    xSemaphoreTake (text_mutex, portMAX_DELAY);
    while (*t)
    {
@@ -173,18 +187,21 @@ text15 (int x, int y, char *t)
          for (int dx = 0; dx < 15; dx++)
             oledset (x + dx, y + sizeof (font15[0]) / sizeof (font15[0][0]) - 1 - dy, 15 - (font15[c][dy][dx] >> 4));
       x += 15;
-      for (int dy = 0; dy < sizeof (font15[0]) / sizeof (font15[0][0]); dy++)
-         oledset (x, y + dy, 0);
-      x++;
+      for (int dx = 0; dx < 2; dx++)
+         for (int dy = 0; dy < sizeof (font15[0]) / sizeof (font15[0][0]); dy++)
+            oledset (x + dx, y + dy, 0);
+      x += 2;
    }
    xSemaphoreGive (text_mutex);
+   return x;
 }
 
-void
+int
 text20 (int x, int y, char *t)
 {
    if (!text_mutex)
-      return;
+      return x;
+   y -= sizeof (font20[0]) / sizeof (font20[0][0]) * 2 / 9;
    xSemaphoreTake (text_mutex, portMAX_DELAY);
    while (*t)
    {
@@ -198,11 +215,13 @@ text20 (int x, int y, char *t)
          for (int dx = 0; dx < 20; dx++)
             oledset (x + dx, y + sizeof (font20[0]) / sizeof (font20[0][0]) - 1 - dy, 15 - (font20[c][dy][dx] >> 4));
       x += 20;
-      for (int dy = 0; dy < sizeof (font20[0]) / sizeof (font20[0][0]); dy++)
-         oledset (x, y + dy, 0);
-      x++;
+      for (int dx = 0; dx < 2; dx++)
+         for (int dy = 0; dy < sizeof (font20[0]) / sizeof (font20[0][0]); dy++)
+            oledset (x + dx, y + dy, 0);
+      x += 2;
    }
    xSemaphoreGive (text_mutex);
+   return x;
 }
 
 void
@@ -214,6 +233,7 @@ oled_task (void *p)
    {
       if (i2c_mutex)
          xSemaphoreTake (i2c_mutex, portMAX_DELAY);
+      oledchanged = 0;
       xSemaphoreTake (text_mutex, portMAX_DELAY);
       i2c_cmd_handle_t t = i2c_cmd_link_create ();
       i2c_master_start (t);
@@ -241,13 +261,17 @@ oled_task (void *p)
 
    memset (oled, 0x00, sizeof (oled));  // Blank
 
-   text5 (0, 0, "Hello world");
+   text5 (0, 0, "RevK was here!");
 
    char running = 0;
    while (1)
    {                            // Update
+      usleep (100000);
+      if (!oledchanged)
+         continue;
       if (i2c_mutex)
          xSemaphoreTake (i2c_mutex, portMAX_DELAY);
+      oledchanged = 0;
       i2c_cmd_handle_t t = i2c_cmd_link_create ();
       i2c_master_start (t);
       i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
@@ -283,10 +307,11 @@ oled_task (void *p)
          if (e)
             revk_error ("OLED", "Data failed %s", esp_err_to_name (e));
       }
-      if (running)
-         sleep (1);
-      else
+      if (!running)
+      {
          running = 1;
+         oledchanged = 1;
+      }
    }
 }
 
@@ -401,10 +426,26 @@ co2_task (void *p)
                   if (!num_owb)
                      lasttemp = report ("temp", lasttemp, t, tempplaces);       // Use temp here as no DS18B20
                   char temp[10];
-                  sprintf (temp, "%.1fC", lasttemp);
-                  text20 (0, 20, temp);
-                  sprintf (temp, "%d", (int)lastco2);
-                  text20 (0, 100, temp);
+                  int x,
+                    y;
+                  if (lastco2 > 300)
+                  {
+                     sprintf (temp, "%4d ", (int) lastco2);
+                     x = text20 (0, y = 128 - 36, temp) - 20;
+                     text5 (x, y, "CO2");
+                  }
+                  if (lasttemp > -50)
+                  {
+                     sprintf (temp, "%.1f ", lasttemp);
+                     x = text20 (0, y = 60, temp) - 20;
+                     text15 (x, y, "C ");
+                  }
+                  if (lastrh > 0)
+                  {
+                     sprintf (temp, "%2d ", (int) lastrh);
+                     x = text15 (0, y = 15, temp) - 15;
+                     text10 (x, y, "% ");
+                  }
                }
             }
          }
