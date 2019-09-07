@@ -9,6 +9,11 @@ const char TAG[] = "CO2";
 #include "owb_rmt.h"
 #include "ds18b20.h"
 
+#include "font5.h"
+#include "font10.h"
+#include "font15.h"
+#include "font20.h"
+
 #define ACK_CHECK_EN 0x1        /*!< I2C master will check ack from slave */
 #define ACK_CHECK_DIS 0x0       /*!< I2C master will not check ack from slave */
 #define ACK_VAL 0x0             /*!< I2C ack value */
@@ -36,6 +41,7 @@ static float lastrh = 0;
 static float lasttemp = 0;
 static float lastotemp = 0;
 static SemaphoreHandle_t i2c_mutex = NULL;
+static SemaphoreHandle_t text_mutex = NULL;
 static int8_t co2port = -1,
    oledport = -1;
 static int8_t num_owb = 0;
@@ -85,6 +91,119 @@ app_command (const char *tag, unsigned int len, const unsigned char *value)
 #define	OLEDH	128
 #define	OLEDB	4
 static uint8_t oled[OLEDW * OLEDH * OLEDB / 8];
+static inline void
+oledset (int x, int y, uint8_t v)
+{
+   uint8_t m = (1 << OLEDB) - 1;
+   if (x < 0 || x >= OLEDW)
+      return;
+   if (y < 0 || y >= OLEDH)
+      return;
+   if (v > m)
+      v = m;
+   int s = ((8 / OLEDB) - 1 - (x % (8 / OLEDB))) * OLEDB;
+   oled[y * OLEDW * OLEDB / 8 + x * OLEDB / 8] = ((oled[y * OLEDW * OLEDB / 8 + x * OLEDB / 8] & ~(m << s)) | (v << s));
+}
+
+void
+text5 (int x, int y, char *t)
+{
+   if (!text_mutex)
+      return;
+   xSemaphoreTake (text_mutex, portMAX_DELAY);
+   while (*t)
+   {
+      int c = *t++;
+      if (c < ' ')
+         continue;
+      c -= ' ';
+      if (c >= sizeof (font5) / sizeof (font5[0]))
+         continue;
+      for (int dy = 0; dy < sizeof (font5[0]) / sizeof (font5[0][0]); dy++)
+         for (int dx = 0; dx < 5; dx++)
+            oledset (x + dx, y + sizeof (font5[0]) / sizeof (font5[0][0]) - 1 - dy, 15 - (font5[c][dy][dx] >> 4));
+      x += 5;
+      for (int dy = 0; dy < sizeof (font5[0]) / sizeof (font5[0][0]); dy++)
+         oledset (x, y + dy, 0);
+      x++;
+   }
+   xSemaphoreGive (text_mutex);
+}
+
+void
+text10 (int x, int y, char *t)
+{
+   if (!text_mutex)
+      return;
+   xSemaphoreTake (text_mutex, portMAX_DELAY);
+   while (*t)
+   {
+      int c = *t++;
+      if (c < ' ')
+         continue;
+      c -= ' ';
+      if (c >= sizeof (font10) / sizeof (font10[0]))
+         continue;
+      for (int dy = 0; dy < sizeof (font10[0]) / sizeof (font10[0][0]); dy++)
+         for (int dx = 0; dx < 10; dx++)
+            oledset (x + dx, y + sizeof (font10[0]) / sizeof (font10[0][0]) - 1 - dy, 15 - (font10[c][dy][dx] >> 4));
+      x += 10;
+      for (int dy = 0; dy < sizeof (font10[0]) / sizeof (font10[0][0]); dy++)
+         oledset (x, y + dy, 0);
+      x++;
+   }
+   xSemaphoreGive (text_mutex);
+}
+
+void
+text15 (int x, int y, char *t)
+{
+   if (!text_mutex)
+      return;
+   xSemaphoreTake (text_mutex, portMAX_DELAY);
+   while (*t)
+   {
+      int c = *t++;
+      if (c < ' ')
+         continue;
+      c -= ' ';
+      if (c >= sizeof (font15) / sizeof (font15[0]))
+         continue;
+      for (int dy = 0; dy < sizeof (font15[0]) / sizeof (font15[0][0]); dy++)
+         for (int dx = 0; dx < 15; dx++)
+            oledset (x + dx, y + sizeof (font15[0]) / sizeof (font15[0][0]) - 1 - dy, 15 - (font15[c][dy][dx] >> 4));
+      x += 15;
+      for (int dy = 0; dy < sizeof (font15[0]) / sizeof (font15[0][0]); dy++)
+         oledset (x, y + dy, 0);
+      x++;
+   }
+   xSemaphoreGive (text_mutex);
+}
+
+void
+text20 (int x, int y, char *t)
+{
+   if (!text_mutex)
+      return;
+   xSemaphoreTake (text_mutex, portMAX_DELAY);
+   while (*t)
+   {
+      int c = *t++;
+      if (c < ' ')
+         continue;
+      c -= ' ';
+      if (c >= sizeof (font20) / sizeof (font20[0]))
+         continue;
+      for (int dy = 0; dy < sizeof (font20[0]) / sizeof (font20[0][0]); dy++)
+         for (int dx = 0; dx < 20; dx++)
+            oledset (x + dx, y + sizeof (font20[0]) / sizeof (font20[0][0]) - 1 - dy, 15 - (font20[c][dy][dx] >> 4));
+      x += 20;
+      for (int dy = 0; dy < sizeof (font20[0]) / sizeof (font20[0][0]); dy++)
+         oledset (x, y + dy, 0);
+      x++;
+   }
+   xSemaphoreGive (text_mutex);
+}
 
 void
 oled_task (void *p)
@@ -95,22 +214,18 @@ oled_task (void *p)
    {
       if (i2c_mutex)
          xSemaphoreTake (i2c_mutex, portMAX_DELAY);
+      xSemaphoreTake (text_mutex, portMAX_DELAY);
       i2c_cmd_handle_t t = i2c_cmd_link_create ();
       i2c_master_start (t);
       i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
       i2c_master_write_byte (t, 0x00, true);    // Cmds
-      i2c_master_write_byte (t, 0x15, true);    // Col
-      i2c_master_write_byte (t, 0x00, true);    // 0
-      i2c_master_write_byte (t, 0x7F, true);    // 127
-      i2c_master_write_byte (t, 0x75, true);    // Row
-      i2c_master_write_byte (t, 0x00, true);    // 0
-      i2c_master_write_byte (t, 0x7F, true);    // 127
+      i2c_master_write_byte (t, 0xAE, true);    // Off
       i2c_master_write_byte (t, 0xA0, true);    // Remap
-      i2c_master_write_byte (t, 0x41, true);    // 
-      i2c_master_write_byte (t, 0xAF, true);    // On
+      i2c_master_write_byte (t, 0x41, true);    // Match display (interlaces row, and swapped col)
       i2c_master_stop (t);
       e = i2c_master_cmd_begin (oledport, t, 10 / portTICK_PERIOD_MS);
       i2c_cmd_link_delete (t);
+      xSemaphoreGive (text_mutex);
       if (i2c_mutex)
          xSemaphoreGive (i2c_mutex);
       if (!e)
@@ -124,24 +239,37 @@ oled_task (void *p)
       return;
    }
 
-   memset (oled, 0x00, sizeof (oled));
+   memset (oled, 0x00, sizeof (oled));  // Blank
 
-#if 1
-   {                            // TODO
-      for (int x = 0; x < OLEDW; x++)
-         for (int y = 0; y < OLEDH; y++)
-            if ((x - OLEDW / 2) * (x - OLEDW / 2) + (y - OLEDH / 2) * (y - OLEDH / 2) > OLEDW * OLEDH / 4)
-               oled[y * OLEDW * OLEDB / 8 + x * OLEDB / 8] |= (15 << ((x & 1) ? 0 : 4));
-   }
-#endif
+   text5 (0, 0, "Hello world");
 
+   char running = 0;
    while (1)
-   {
+   {                            // Update
+      if (i2c_mutex)
+         xSemaphoreTake (i2c_mutex, portMAX_DELAY);
+      i2c_cmd_handle_t t = i2c_cmd_link_create ();
+      i2c_master_start (t);
+      i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
+      i2c_master_write_byte (t, 0x00, true);    // Cmds
+      if (running)
+         i2c_master_write_byte (t, 0xAF, true); // On
+      i2c_master_write_byte (t, 0x15, true);    // Col
+      i2c_master_write_byte (t, 0x00, true);    // 0
+      i2c_master_write_byte (t, 0x7F, true);    // 127
+      i2c_master_write_byte (t, 0x75, true);    // Row
+      i2c_master_write_byte (t, 0x00, true);    // 0
+      i2c_master_write_byte (t, 0x7F, true);    // 127
+      i2c_master_stop (t);
+      e = i2c_master_cmd_begin (oledport, t, 10 / portTICK_PERIOD_MS);
+      i2c_cmd_link_delete (t);
+      if (i2c_mutex)
+         xSemaphoreGive (i2c_mutex);
       for (int y = 0; y < OLEDH; y++)
       {
          if (i2c_mutex)
             xSemaphoreTake (i2c_mutex, portMAX_DELAY);
-         i2c_cmd_handle_t t = i2c_cmd_link_create ();
+         t = i2c_cmd_link_create ();
          i2c_master_start (t);
          i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
          i2c_master_write_byte (t, 0x40, true); // Data
@@ -155,7 +283,10 @@ oled_task (void *p)
          if (e)
             revk_error ("OLED", "Data failed %s", esp_err_to_name (e));
       }
-      sleep (1);
+      if (running)
+         sleep (1);
+      else
+         running = 1;
    }
 }
 
@@ -269,6 +400,11 @@ co2_task (void *p)
                   lastrh = report ("rh", lastrh, rh, rhplaces);
                   if (!num_owb)
                      lasttemp = report ("temp", lasttemp, t, tempplaces);       // Use temp here as no DS18B20
+                  char temp[10];
+                  sprintf (temp, "%.1fC", lasttemp);
+                  text20 (0, 20, temp);
+                  sprintf (temp, "%d", (int)lastco2);
+                  text20 (0, 100, temp);
                }
             }
          }
@@ -329,6 +465,7 @@ app_main ()
    {
       oledport = co2port;
       i2c_mutex = xSemaphoreCreateMutex ();     // Shared I2C
+      text_mutex = xSemaphoreCreateMutex ();    // Shared I2C
    } else if (oledsda >= 0 && oledscl >= 0)
    {                            // Separate OLED port
       oledport = 1;
