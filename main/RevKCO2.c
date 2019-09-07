@@ -48,9 +48,16 @@ report (const char *tag, float last, float this, int places)
 {
    float mag = powf (10.0, -places);    // Rounding
    if (this < last)
+   {
       this += mag / 5.0;        // Hysteresis
-   else if (this > last)
+      if (this > mag)
+         return last;
+   } else if (this > last)
+   {
       this -= mag / 5.0;        // Hysteresis
+      if (this < last)
+         return last;
+   }
    this = roundf (this / mag) * mag;
    if (this == last)
       return last;
@@ -92,6 +99,31 @@ void
 co2_task (void *p)
 {
    p = p;
+   // Set up
+   while (1)
+   {
+      if (i2c_mutex)
+         xSemaphoreTake (i2c_mutex, portMAX_DELAY);
+      i2c_cmd_handle_t i = i2c_cmd_link_create ();
+      i2c_master_start (i);
+      i2c_master_write_byte (i, (co2address << 1), ACK_CHECK_EN);
+      i2c_master_write_byte (i, 0x00, ACK_CHECK_EN);    // 0010=start measurements
+      i2c_master_write_byte (i, 0x10, ACK_CHECK_EN);
+      i2c_master_write_byte (i, 0x00, ACK_CHECK_EN);    // Pressure (0=unknown)
+      i2c_master_write_byte (i, 0x00, ACK_CHECK_EN);
+      i2c_master_write_byte (i, 0x81, ACK_CHECK_EN);    // CRC
+      i2c_master_stop (i);
+      esp_err_t err = i2c_master_cmd_begin (co2port, i, 10 / portTICK_PERIOD_MS);
+      i2c_cmd_link_delete (i);
+      if (i2c_mutex)
+         xSemaphoreGive (i2c_mutex);
+      if (err)
+         ESP_LOGI (TAG, "Tx StartMeasure %s", esp_err_to_name (err));
+      else
+         break;
+      sleep (1);                // try again
+   }
+   // Get measurements
    while (1)
    {
       usleep (100000);
@@ -249,35 +281,10 @@ app_main ()
       i2c_set_timeout (oledport, 160000);       // 2ms? allow for clock stretching
    }
 
-   i2c_cmd_handle_t i;
-
    if (co2port >= 0)
-   {                            // CO2 init
-      while (1)
-      {
-         i = i2c_cmd_link_create ();
-         i2c_master_start (i);
-         i2c_master_write_byte (i, (co2address << 1), ACK_CHECK_EN);
-         i2c_master_write_byte (i, 0x00, ACK_CHECK_EN); // 0010=start measurements
-         i2c_master_write_byte (i, 0x10, ACK_CHECK_EN);
-         i2c_master_write_byte (i, 0x00, ACK_CHECK_EN); // Pressure (0=unknown)
-         i2c_master_write_byte (i, 0x00, ACK_CHECK_EN);
-         i2c_master_write_byte (i, 0x81, ACK_CHECK_EN); // CRC
-         i2c_master_stop (i);
-         esp_err_t err = i2c_master_cmd_begin (co2port, i, 10 / portTICK_PERIOD_MS);
-         i2c_cmd_link_delete (i);
-         if (err)
-            ESP_LOGI (TAG, "Tx StartMeasure %s", esp_err_to_name (err));
-         else
-            break;
-         sleep (1);             // try again
-      }
       revk_task ("CO2", co2_task, NULL);
-   }
    if (oledport >= 0)
-   {                            // OLED Init
       revk_task ("OLED", oled_task, NULL);
-   }
    if (ds18b20 >= 0)
    {                            // DS18B20 init
       owb = owb_rmt_initialize (&rmt_driver_info, ds18b20, RMT_CHANNEL_1, RMT_CHANNEL_0);
