@@ -27,9 +27,19 @@ const char TAG[] = "CO2";
 #define s8(n,d)	int8_t n;
 settings
 #undef s8
+static int lastco2 = 0;
+static int lastrh = 0;
+static int lasttemp = 0;
+
 const char *
 app_command (const char *tag, unsigned int len, const unsigned char *value)
 {
+   if (!strcmp (tag, "connect"))
+   {
+      lastco2 = 0;
+      lasttemp = 0;
+      lastrh = 0;
+   }
    return "";
 }
 
@@ -113,7 +123,7 @@ app_main ()
       // TODO
    }
    OneWireBus *owb = NULL;
-      owb_rmt_driver_info rmt_driver_info;
+   owb_rmt_driver_info rmt_driver_info;
    DS18B20_Info *ds18b20s[MAX_OWB] = { 0 };
    int num_owb = 0;
    if (ds18b20 >= 0)
@@ -256,7 +266,21 @@ app_main ()
                      d[1] = buf[15];
                      d[0] = buf[16];
                      float rh = *(float *) d;
-                     revk_info (TAG, "CO2=%.2f T=%.2f RH=%.2f", co2, t, rh);
+                     if (lastco2 != (int) co2)
+                     {
+                        lastco2 = (int) co2;
+                        revk_info ("co2", "%d", lastco2);
+                     }
+                     if (lastrh != (int) rh)
+                     {
+                        lastrh = (int) rh;
+                        revk_info ("rh", "%d", lastrh);
+                     }
+                     if (!num_owb && lasttemp != (int) (t * 10))
+                     {          // We use DS18B20 if we have one
+                        lasttemp = (int) (t * 10);
+                        revk_info ("temp", "%.1f", t);
+                     }
                   }
                }
             }
@@ -274,8 +298,11 @@ app_main ()
          DS18B20_ERROR errors[MAX_OWB] = { 0 };
          for (int i = 0; i < num_owb; ++i)
             errors[i] = ds18b20_read_temp (ds18b20s[i], &readings[i]);
-         if (!errors[0])
+         if (!errors[0] && (int) (readings[0] * 10) != lasttemp)
+         {
+            lasttemp = (int) (readings[0] * 10);
             revk_info ("temp", "%.1f", readings[0]);
+         }
       }
    }
 }
