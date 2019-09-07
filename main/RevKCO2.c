@@ -3,6 +3,7 @@ const char TAG[] = "CO2";
 
 #include "revk.h"
 #include <driver/i2c.h>
+#include <math.h>
 
 #include "owb.h"
 #include "owb_rmt.h"
@@ -29,7 +30,7 @@ settings
 #undef s8
 static int lastco2 = 0;
 static int lastrh = 0;
-static int lasttemp = 0;
+static float lasttemp = 0;
 
 const char *
 app_command (const char *tag, unsigned int len, const unsigned char *value)
@@ -266,21 +267,15 @@ app_main ()
                      d[1] = buf[15];
                      d[0] = buf[16];
                      float rh = *(float *) d;
-                     if (lastco2 != (int) co2)
-                     {
-                        lastco2 = (int) co2;
-                        revk_info ("co2", "%d", lastco2);
-                     }
-                     if (lastrh != (int) rh)
-                     {
-                        lastrh = (int) rh;
-                        revk_info ("rh", "%d", lastrh);
-                     }
-                     if (!num_owb && lasttemp != (int) (t * 10))
-                     {          // We use DS18B20 if we have one
-                        lasttemp = (int) (t * 10);
-                        revk_info ("temp", "%.1f", t);
-                     }
+                     int v = roundf (co2 / 10.0) * 10;
+                     if (lastco2 != v)
+                        revk_info ("co2", "%d", lastco2 = v);
+                     v = roundf (rh);
+                     if (lastrh != v)
+                        revk_info ("rh", "%d", lastrh = v);
+                     t = roundf (lasttemp * 10.0) / 10.0;
+                     if (!num_owb && lasttemp != t)
+                        revk_info ("temp", "%.1f", lasttemp = t);
                   }
                }
             }
@@ -298,11 +293,9 @@ app_main ()
          DS18B20_ERROR errors[MAX_OWB] = { 0 };
          for (int i = 0; i < num_owb; ++i)
             errors[i] = ds18b20_read_temp (ds18b20s[i], &readings[i]);
-         if (!errors[0] && (int) (readings[0] * 10) != lasttemp)
-         {
-            lasttemp = (int) (readings[0] * 10);
-            revk_info ("temp", "%.1f", readings[0]);
-         }
+         float t = roundf (readings[0] * 10.0) / 10.0;
+         if (!errors[0] && lasttemp != t)
+            revk_info ("temp", "%.1f", lasttemp = t);
       }
    }
 }
