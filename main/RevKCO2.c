@@ -561,7 +561,7 @@ app_main ()
          continue;
       }
       char temp[30];
-      sprintf (temp, "%04d-%02d-%02d %02d:%02dZ", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min);
+      sprintf (temp, "%04d-%02d-%02d %02d:%02d", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min);
       text5 (22, 0, temp);
       sleep (60 - t->tm_sec);
    }
