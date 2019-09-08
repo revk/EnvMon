@@ -42,7 +42,7 @@ static float thisco2 = -1000;
 static float thistemp = -1000;
 static float thisrh = -1000;
 static SemaphoreHandle_t i2c_mutex = NULL;
-static SemaphoreHandle_t text_mutex = NULL;
+static SemaphoreHandle_t oled_mutex = NULL;
 static int8_t co2port = -1,
    oledport = -1;
 static int8_t num_owb = 0;
@@ -162,7 +162,6 @@ texth (uint8_t size)
 int
 text (uint8_t size, int x, int y, char *t)
 {
-   xSemaphoreTake (text_mutex, portMAX_DELAY);
    if (!size)
       size = 1;
    else if (size > sizeof (fonts) / sizeof (*fonts))
@@ -190,7 +189,6 @@ text (uint8_t size, int x, int y, char *t)
       }
       x += ww;
    }
-   xSemaphoreGive (text_mutex);
    return x;
 }
 
@@ -203,7 +201,6 @@ oled_task (void *p)
    {
       if (i2c_mutex)
          xSemaphoreTake (i2c_mutex, portMAX_DELAY);
-      xSemaphoreTake (text_mutex, portMAX_DELAY);
       oledchanged = 0;
       i2c_cmd_handle_t t = i2c_cmd_link_create ();
       i2c_master_start (t);
@@ -215,7 +212,6 @@ oled_task (void *p)
       i2c_master_stop (t);
       e = i2c_master_cmd_begin (oledport, t, 10 / portTICK_PERIOD_MS);
       i2c_cmd_link_delete (t);
-      xSemaphoreGive (text_mutex);
       if (i2c_mutex)
          xSemaphoreGive (i2c_mutex);
       if (!e)
@@ -244,12 +240,12 @@ oled_task (void *p)
    {                            // Update
       if (!oledchanged)
       {
-         sleep (1);
+         usleep (100000);
          continue;
       }
       if (i2c_mutex)
          xSemaphoreTake (i2c_mutex, portMAX_DELAY);
-      xSemaphoreTake (text_mutex, portMAX_DELAY);
+      xSemaphoreTake (oled_mutex, portMAX_DELAY);
       oledchanged = 0;
       i2c_cmd_handle_t t = i2c_cmd_link_create ();
       i2c_master_start (t);
@@ -285,7 +281,7 @@ oled_task (void *p)
          running = 1;
          oledchanged = 1;
       }
-      xSemaphoreGive (text_mutex);
+      xSemaphoreGive (oled_mutex);
       if (i2c_mutex)
          xSemaphoreGive (i2c_mutex);
    }
@@ -439,7 +435,7 @@ app_main ()
    settings
 #undef s8
 #undef b
-      text_mutex = xSemaphoreCreateMutex ();    // Shared text access
+      oled_mutex = xSemaphoreCreateMutex ();    // Shared text access
    if (co2sda >= 0 && co2scl >= 0)
    {
       co2port = 0;
@@ -451,7 +447,7 @@ app_main ()
          .scl_io_num = co2scl,
          .sda_pullup_en = true,
          .scl_pullup_en = true,
-         .master.clk_speed = 100000,
+         .master.clk_speed = 400000,
       };
       if (i2c_param_config (co2port, &config))
       {
@@ -524,66 +520,87 @@ app_main ()
    // Main task...
    while (1)
    {
-      time_t now = time (0);
-      struct tm *t;
-      t = localtime (&now);
-      if (t->tm_year < 100)
-      {
-         sleep (1);
-         continue;
-      }
+      xSemaphoreTake (oled_mutex, portMAX_DELAY);
       char s[30];
-      sprintf (s, "%04d-%02d-%02d %02d:%02d:%02d %s", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min,
-               t->tm_sec, revk_offline ()? "O/L" : "   ");
-      text (1, 0, 0, s);
+      static time_t showtime = 0;
+      time_t now = time (0);
+      if (now != showtime)
+      {
+         showtime = now;
+         struct tm *t;
+         t = localtime (&showtime);
+         if (t->tm_year > 100)
+         {
+            sprintf (s, "%04d-%02d-%02d %02d:%02d:%02d %s", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min,
+                     t->tm_sec, revk_offline ()? "O/L" : "   ");
+            text (1, 0, 0, s);
+         }
+      }
       int x,
         y = OLEDH - 1,
          space = (OLEDH - 28 - 35 - 21 - 9) / 3;
       y -= 28;
-      if (thisco2 < 300)
-         strcpy (s, "____");
-      else if (thisco2 >= 10000)
-         strcpy (s, "^^^^");
-      else
-         sprintf (s, "%4d", (int) thisco2);
-      x = text (4, 0, y, s);
-      text (1, x, y + 9, "CO2");
-      x = text (1, x, y, "ppm");
+      static float showco2 = -1000;
+      if (thisco2 != showco2)
+      {
+         showco2 = thisco2;
+         if (showco2 < 300)
+            strcpy (s, "____");
+         else if (showco2 >= 10000)
+            strcpy (s, "^^^^");
+         else
+            sprintf (s, "%4d", (int) showco2);
+         x = text (4, 0, y, s);
+         text (1, x, y + 9, "CO2");
+         x = text (1, x, y, "ppm");
+      }
       y -= space;               // Space
       y -= 35;
-      if (f)
-      {                         // Fahrenheit
-         int fh = (thistemp + 40.0) * 1.8 - 40.0;
-         if (fh <= -100)
-            strcpy (s, "___");
-         else if (fh >= 1000)
-            strcpy (s, "^^^");
-         else
-            sprintf (s, "%3d", fh);
-      } else
-      {                         // Celsius
-         if (thistemp <= -10)
-            strcpy (s, "__._");
-         else if (thistemp >= 100)
-            strcpy (s, "^^.^");
-         else
-            sprintf (s, "%4.1f", thistemp);
+      static float showtemp = -1000;
+      if (thistemp != showtemp)
+      {
+         showtemp = thistemp;
+         if (f)
+         {                      // Fahrenheit
+            int fh = (showtemp + 40.0) * 1.8 - 40.0;
+            if (fh <= -100)
+               strcpy (s, "___");
+            else if (fh >= 1000)
+               strcpy (s, "^^^");
+            else
+               sprintf (s, "%3d", fh);
+         } else
+         {                      // Celsius
+            if (showtemp <= -10)
+               strcpy (s, "__._");
+            else if (showtemp >= 100)
+               strcpy (s, "^^.^");
+            else
+               sprintf (s, "%4.1f", showtemp);
+         }
+         x = text (5, 10, y, s);
+         x = text (1, x, y + 12, "o");
+         x = text (2, x, y, f ? "F" : "C");
       }
-      x = text (5, 10, y, s);
-      x = text (1, x, y + 12, "o");
-      x = text (2, x, y, f ? "F" : "C");
       y -= space;               // Space
       y -= 21;
-      if (thisrh <= 0)
-         strcpy (s, "__");
-      else if (thisrh >= 100)
-         strcpy (s, "^^");
-      else
-         sprintf (s, "%2d", (int) thisrh);
-      x = text (3, 0, y, s);
-      x = text (2, x, y, "%");
-      text (1, x, y + 9, "R");
-      x = text (1, x, y, "H");
-      usleep (250000);
+      static float showrh = -1000;
+      if (thisrh != showrh)
+      {
+         showrh = thisrh;
+         if (showrh <= 0)
+            strcpy (s, "__");
+         else if (showrh >= 100)
+            strcpy (s, "^^");
+         else
+            sprintf (s, "%2d", (int) showrh);
+         x = text (3, 0, y, s);
+         x = text (2, x, y, "%");
+         text (1, x, y + 9, "R");
+         x = text (1, x, y, "H");
+      }
+      y -= space;
+      xSemaphoreGive (oled_mutex);
+      usleep (1000000LL - (esp_timer_get_time () % 1000000LL));
    }
 }
