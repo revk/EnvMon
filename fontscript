@@ -2,7 +2,7 @@
 # Bodgy script to make fonts... Use the fonts I commit, probably easier
 cd /tmp/5x9
 if(! -e /tmp/5x9) /projects/tools/bin/5x9 --style=JTD
-foreach d (0.96 1.92 2.88 3.84)
+foreach d (0.96 1.92 2.88 3.84 4.80)
 	inkscape --export-area=0:100:600:1000 -echar.png -d$d u0020.svg
 	setenv W `identify -format '%W' char.png`
 	setenv H `identify -format '%H' char.png`
@@ -10,12 +10,11 @@ foreach d (0.96 1.92 2.88 3.84)
 	@ b = $W * $H / 2
 	set f="font$n.h"
 	echo "const uint8_t font${n}[]={ // $W/$H ($b bytes per character)" > $f
-	echo "" >> $f
 	foreach u (u00[0-7]*.svg)
 		inkscape --export-area=0:100:600:1000 -echar.png -d$d "$u"
 		convert char.png -flatten -negate char.gray
 		echo "// $u:r" >> $f
-		od -v -tx1 -w$W -Anone char.gray | sed -e 's/\([0-9a-f]\)[0-9a-f] [0-9a-f]\([0-9a-f]\)/0x\1\2,/g' >> $f
+		od -v -tx1 -w$W -Anone char.gray | sed -e 's/\([0-9a-f]\)[0-9a-f] \([0-9a-f]\)[0-9a-f]/0x\1\2,/g' >> $f
 	end
 	echo "};" >> $f
 end

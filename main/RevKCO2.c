@@ -9,11 +9,6 @@ const char TAG[] = "CO2";
 #include "owb_rmt.h"
 #include "ds18b20.h"
 
-#include "font5.h"
-#include "font10.h"
-#include "font15.h"
-#include "font20.h"
-
 #define ACK_CHECK_EN 0x1        /*!< I2C master will check ack from slave */
 #define ACK_CHECK_DIS 0x0       /*!< I2C master will not check ack from slave */
 #define ACK_VAL 0x0             /*!< I2C ack value */
@@ -41,6 +36,7 @@ static float lastrh = 0;
 static float lasttemp = 0;
 static float lastotemp = 0;
 static SemaphoreHandle_t i2c_mutex = NULL;
+static SemaphoreHandle_t text_mutex = NULL;
 static int8_t co2port = -1,
    oledport = -1;
 static int8_t num_owb = 0;
@@ -93,7 +89,7 @@ static uint8_t oled[OLEDW * OLEDH * OLEDB / 8];
 static volatile char oledchanged = 1;
 
 static inline void
-oledset (int x, int y, uint8_t v)
+oledbit (int x, int y, uint8_t v)
 {
    uint8_t m = (1 << OLEDB) - 1;
    if (x < 0 || x >= OLEDW)
@@ -111,99 +107,83 @@ oledset (int x, int y, uint8_t v)
    oledchanged = 1;
 }
 
-int
-text5 (int x, int y, char *t)
-{
-   y -= sizeof (font5[0]) / sizeof (font5[0][0]) * 2 / 9;
-   while (*t)
-   {
-      int c = *t++;
-      if (c < ' ')
-         continue;
-      c -= ' ';
-      if (c >= sizeof (font5) / sizeof (font5[0]))
-         continue;
-      for (int dy = 0; dy < sizeof (font5[0]) / sizeof (font5[0][0]); dy++)
-         for (int dx = 0; dx < 5; dx++)
-            oledset (x + dx, y + sizeof (font5[0]) / sizeof (font5[0][0]) - 1 - dy, 15 - (font5[c][dy][dx] >> 4));
-      x += 5;
-      for (int dx = 0; dx < 1; dx++)
-         for (int dy = 0; dy < sizeof (font5[0]) / sizeof (font5[0][0]); dy++)
-            oledset (x + dx, y + dy, 0);
-      x += 1;
+static inline int
+oledcopy (int x, int y, const uint8_t * src, int dx)
+{                               // Copy pixels
+   x -= x % (8 / OLEDB);        // Align to byte
+   dx -= dx % (8 / OLEDB);      // Align to byte
+   if (y >= 0 && y < OLEDH && x + dx >= 0 && x < OLEDW)
+   {                            // Fits
+      int pix = dx;
+      if (x < 0)
+      {                         // Truncate left
+         pix += x;
+         x = 0;
+      }
+      if (x + pix > OLEDW)
+         pix = OLEDW - x;       // Truncate right
+      uint8_t *dst = oled + y * OLEDW * OLEDB / 8 + x * OLEDB / 8;
+      if (memcmp (dst, src, pix * OLEDB / 8))
+      {                         // Changed
+         memcpy (dst, src, pix * OLEDB / 8);
+         oledchanged = 1;
+      }
    }
-   return x;
+   return dx * OLEDB / 8;       // Bytes (would be) copied
+}
+
+#include "ajk.h"
+#include "font1.h"
+#include "font2.h"
+#include "font3.h"
+#include "font4.h"
+#include "font5.h"
+const uint8_t *const fonts[] = { font1, font2, font3, font4, font5 };
+
+static inline int
+textw (uint8_t size)
+{
+   return size * 6;
+}
+
+static inline int
+texth (uint8_t size)
+{
+   return size * 9;
 }
 
 int
-text10 (int x, int y, char *t)
+text (uint8_t size, int x, int y, char *t)
 {
-   y -= sizeof (font10[0]) / sizeof (font10[0][0]) * 2 / 9;
+   xSemaphoreTake (text_mutex, portMAX_DELAY);
+   if (!size)
+      size = 1;
+   else if (size > sizeof (fonts) / sizeof (*fonts))
+      size = sizeof (fonts) / sizeof (*fonts);
+   int w = textw (size);
+   int h = texth (size);
+   y -= size * 2;               // Baseline
    while (*t)
    {
       int c = *t++;
-      if (c < ' ')
+      if (c < ' ' || c >= 0x7F)
          continue;
+      const uint8_t *base = fonts[size - 1] + (c - ' ') * h * w * OLEDB / 8;
+      int ww = w;
+      if (c == '.')
+      {
+         ww = size * 2;
+         base += size * 2 * OLEDB / 8;
+      }                         // Special case for .
       c -= ' ';
-      if (c >= sizeof (font10) / sizeof (font10[0]))
-         continue;
-      for (int dy = 0; dy < sizeof (font10[0]) / sizeof (font10[0][0]); dy++)
-         for (int dx = 0; dx < 10; dx++)
-            oledset (x + dx, y + sizeof (font10[0]) / sizeof (font10[0][0]) - 1 - dy, 15 - (font10[c][dy][dx] >> 4));
-      x += 10;
-      for (int dx = 0; dx < 2; dx++)
-         for (int dy = 0; dy < sizeof (font10[0]) / sizeof (font10[0][0]); dy++)
-            oledset (x + dx, y + dy, 0);
-      x += 2;
+      for (int dy = 0; dy < h; dy++)
+      {
+         oledcopy (x, y + h - 1 - dy, base, ww);
+         base += w * OLEDB / 8;
+      }
+      x += ww;
    }
-   return x;
-}
-
-int
-text15 (int x, int y, char *t)
-{
-   y -= sizeof (font15[0]) / sizeof (font15[0][0]) * 2 / 9;
-   while (*t)
-   {
-      int c = *t++;
-      if (c < ' ')
-         continue;
-      c -= ' ';
-      if (c >= sizeof (font15) / sizeof (font15[0]))
-         continue;
-      for (int dy = 0; dy < sizeof (font15[0]) / sizeof (font15[0][0]); dy++)
-         for (int dx = 0; dx < 15; dx++)
-            oledset (x + dx, y + sizeof (font15[0]) / sizeof (font15[0][0]) - 1 - dy, 15 - (font15[c][dy][dx] >> 4));
-      x += 15;
-      for (int dx = 0; dx < 2; dx++)
-         for (int dy = 0; dy < sizeof (font15[0]) / sizeof (font15[0][0]); dy++)
-            oledset (x + dx, y + dy, 0);
-      x += 2;
-   }
-   return x;
-}
-
-int
-text20 (int x, int y, char *t)
-{
-   y -= sizeof (font20[0]) / sizeof (font20[0][0]) * 2 / 9;
-   while (*t)
-   {
-      int c = *t++;
-      if (c < ' ')
-         continue;
-      c -= ' ';
-      if (c >= sizeof (font20) / sizeof (font20[0]))
-         continue;
-      for (int dy = 0; dy < sizeof (font20[0]) / sizeof (font20[0][0]); dy++)
-         for (int dx = 0; dx < 20; dx++)
-            oledset (x + dx, y + sizeof (font20[0]) / sizeof (font20[0][0]) - 1 - dy, 15 - (font20[c][dy][dx] >> 4));
-      x += 20;
-      for (int dx = 0; dx < 2; dx++)
-         for (int dy = 0; dy < sizeof (font20[0]) / sizeof (font20[0][0]); dy++)
-            oledset (x + dx, y + dy, 0);
-      x += 2;
-   }
+   xSemaphoreGive (text_mutex);
    return x;
 }
 
@@ -216,6 +196,7 @@ oled_task (void *p)
    {
       if (i2c_mutex)
          xSemaphoreTake (i2c_mutex, portMAX_DELAY);
+      xSemaphoreTake (text_mutex, portMAX_DELAY);
       oledchanged = 0;
       i2c_cmd_handle_t t = i2c_cmd_link_create ();
       i2c_master_start (t);
@@ -227,6 +208,7 @@ oled_task (void *p)
       i2c_master_stop (t);
       e = i2c_master_cmd_begin (oledport, t, 10 / portTICK_PERIOD_MS);
       i2c_cmd_link_delete (t);
+      xSemaphoreGive (text_mutex);
       if (i2c_mutex)
          xSemaphoreGive (i2c_mutex);
       if (!e)
@@ -241,7 +223,14 @@ oled_task (void *p)
    }
 
    memset (oled, 0x00, sizeof (oled));  // Blank
-   text5 (25, 0, "www.me.uk");
+   {
+      const uint8_t *base = ajk;
+      int w = 30,
+         h = sizeof (ajk) / (w * OLEDB / 8);
+      for (int dy = 0; dy < h; dy++)
+         base += oledcopy (80, 10 + h - dy, base, w);
+      text (1, 25, 0, "www.me.uk");
+   }
 
    char running = 0;
    while (1)
@@ -326,6 +315,9 @@ co2_task (void *p)
       vTaskDelete (NULL);
       return;
    }
+   float t = 0,
+      rh = 0,
+      co2 = 0;
    // Get measurements
    while (1)
    {
@@ -388,56 +380,65 @@ co2_task (void *p)
                   d[2] = buf[1];
                   d[1] = buf[3];
                   d[0] = buf[4];
-                  float co2 = *(float *) d;
+                  co2 = *(float *) d;
                   d[3] = buf[6];
                   d[2] = buf[7];
                   d[1] = buf[9];
                   d[0] = buf[10];
-                  float t = *(float *) d;
+                  t = *(float *) d;
                   d[3] = buf[12];
                   d[2] = buf[13];
                   d[1] = buf[15];
                   d[0] = buf[16];
-                  float rh = *(float *) d;
+                  rh = *(float *) d;
                   lastco2 = report ("co2", lastco2, co2, co2places);
                   lastrh = report ("rh", lastrh, rh, rhplaces);
                   if (!num_owb)
                      lasttemp = report ("temp", lasttemp, t, tempplaces);       // Use temp here as no DS18B20
-                  char temp[10];
-                  int x,
-                    y = 128,
-                     s = 14;
-                  y -= 28;
-                  if (lastco2 > 300)
-                  {
-                     sprintf (temp, "%5d", (int) lastco2);
-                     x = text20 (0, y, temp);
-                     x = text5 (x, y, "CO2");
-                  }
-                  y -= s;       // Space
-                  y -= 28;
-                  if (lasttemp > -50)
-                  {
-                     sprintf (temp, "%5.1f", lasttemp);
-                     x = text20 (0, y, temp);
-                     x = text5 (x, y + 12, "o");
-                     x = text10 (x, y, "C");
-                  }
-                  y -= s;       // Space
-                  y -= 21;
-                  if (lastrh > 0)
-                  {
-                     sprintf (temp, "%3d", (int) lastrh);
-                     x = text15 (5, y, temp);
-                     x = text10 (x, y, "%");
-                     x = text5 (x, y, "R/H");
-                  }
                }
             }
          }
       }
       if (i2c_mutex)
          xSemaphoreGive (i2c_mutex);
+      // Update
+      char temp[10];
+      int x,
+        y = OLEDH - 1,
+         s = 12;
+      y -= 28;
+      if (co2 < 300)
+         strcpy (temp, "____");
+      else if (co2 >= 1000)
+         strcpy (temp, "^^^^");
+      else
+         sprintf (temp, "%4d", (int) co2);
+      x = text (4, 0, y, temp);
+      text (1, x, y + 9, "CO2");
+      x = text (1, x, y, "ppm");
+      y -= s;                   // Space
+      y -= 35;
+      if (t <= -10)
+         strcpy (temp, "__._");
+      else if (t >= 100)
+         strcpy (temp, "^^.^");
+      else
+         sprintf (temp, "%4.1f", t);
+      x = text (5, 0, y, temp);
+      x = text (1, x, y + 12, "o");
+      x = text (2, x, y, "C");
+      y -= s;                   // Space
+      y -= 21;
+      if (rh <= 0)
+         strcpy (temp, "__");
+      else if (rh >= 100)
+         strcpy (temp, "^^");
+      else
+         sprintf (temp, "%2d", (int) rh);
+      x = text (3, 5, y, temp);
+      x = text (2, x, y, "%");
+      text (1, x, y + 9, "R");
+      x = text (1, x, y, "H");
    }
 }
 
@@ -468,7 +469,8 @@ app_main ()
 #define s8(n,d) revk_register(#n,0,sizeof(n),&n,#d,SETTING_SIGNED);
    settings
 #undef s8
-      if (co2sda >= 0 && co2scl >= 0)
+      text_mutex = xSemaphoreCreateMutex ();    // Shared text access
+   if (co2sda >= 0 && co2scl >= 0)
    {
       co2port = 0;
       if (i2c_driver_install (co2port, I2C_MODE_MASTER, 0, 0, 0))
@@ -562,7 +564,7 @@ app_main ()
       }
       char temp[30];
       sprintf (temp, "%04d-%02d-%02d %02d:%02d", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min);
-      text5 (22, 0, temp);
+      text (1, 22, 0, temp);
       sleep (60 - t->tm_sec);
    }
 }
