@@ -38,7 +38,9 @@ static float lastco2 = -1000;
 static float lastrh = -1000;
 static float lasttemp = -1000;
 static float lastotemp = -1000;
-static float dstemp = -1000;
+static float thisco2 = -1000;
+static float thistemp = -1000;
+static float thisrh = -1000;
 static SemaphoreHandle_t i2c_mutex = NULL;
 static SemaphoreHandle_t text_mutex = NULL;
 static int8_t co2port = -1,
@@ -247,6 +249,7 @@ oled_task (void *p)
       }
       if (i2c_mutex)
          xSemaphoreTake (i2c_mutex, portMAX_DELAY);
+      xSemaphoreTake (text_mutex, portMAX_DELAY);
       oledchanged = 0;
       i2c_cmd_handle_t t = i2c_cmd_link_create ();
       i2c_master_start (t);
@@ -282,6 +285,7 @@ oled_task (void *p)
          running = 1;
          oledchanged = 1;
       }
+      xSemaphoreGive (text_mutex);
       if (i2c_mutex)
          xSemaphoreGive (i2c_mutex);
    }
@@ -320,9 +324,6 @@ co2_task (void *p)
       vTaskDelete (NULL);
       return;
    }
-   float t = 0,
-      rh = 0,
-      co2 = 0;
    // Get measurements
    while (1)
    {
@@ -385,79 +386,27 @@ co2_task (void *p)
                   d[2] = buf[1];
                   d[1] = buf[3];
                   d[0] = buf[4];
-                  co2 = *(float *) d;
+                  thisco2 = *(float *) d;
                   d[3] = buf[6];
                   d[2] = buf[7];
                   d[1] = buf[9];
                   d[0] = buf[10];
-                  t = *(float *) d;
+                  float t = *(float *) d;
                   d[3] = buf[12];
                   d[2] = buf[13];
                   d[1] = buf[15];
                   d[0] = buf[16];
-                  rh = *(float *) d;
-                  if (num_owb)
-                     t = dstemp;
-                  else
-                     lasttemp = report ("temp", lasttemp, t, tempplaces);       // Use temp here as no DS18B20
-                  lastco2 = report ("co2", lastco2, co2, co2places);
-                  lastrh = report ("rh", lastrh, rh, rhplaces);
+                  thisrh = *(float *) d;
+                  if (!num_owb)
+                     lasttemp = report ("temp", lasttemp, thistemp = t, tempplaces);    // Use temp here as no DS18B20
+                  lastco2 = report ("co2", lastco2, thisco2, co2places);
+                  lastrh = report ("rh", lastrh, thisrh, rhplaces);
                }
             }
          }
       }
       if (i2c_mutex)
          xSemaphoreGive (i2c_mutex);
-      // Update
-      char temp[10];
-      int x,
-        y = OLEDH - 1,
-         s = 12;
-      y -= 28;
-      if (co2 < 300)
-         strcpy (temp, "____");
-      else if (co2 >= 10000)
-         strcpy (temp, "^^^^");
-      else
-         sprintf (temp, "%4d", (int) co2);
-      x = text (4, 0, y, temp);
-      text (1, x, y + 9, "CO2");
-      x = text (1, x, y, "ppm");
-      y -= s;                   // Space
-      y -= 35;
-      if (f)
-      {                         // Fahrenheit
-         int fh = (t + 40.0) * 1.8 - 40.0;
-         if (fh <= -100)
-            strcpy (temp, "___");
-         else if (fh >= 1000)
-            strcpy (temp, "^^^");
-         else
-            sprintf (temp, "%3d", fh);
-      } else
-      {                         // Celsius
-         if (t <= -10)
-            strcpy (temp, "__._");
-         else if (t >= 100)
-            strcpy (temp, "^^.^");
-         else
-            sprintf (temp, "%4.1f", t);
-      }
-      x = text (5, 10, y, temp);
-      x = text (1, x, y + 12, "o");
-      x = text (2, x, y, f ? "F" : "C");
-      y -= s;                   // Space
-      y -= 21;
-      if (rh <= 0)
-         strcpy (temp, "__");
-      else if (rh >= 100)
-         strcpy (temp, "^^");
-      else
-         sprintf (temp, "%2d", (int) rh);
-      x = text (3, 0, y, temp);
-      x = text (2, x, y, "%");
-      text (1, x, y + 9, "R");
-      x = text (1, x, y, "H");
    }
 }
 
@@ -475,10 +424,7 @@ ds18b20_task (void *p)
       for (int i = 0; i < num_owb; ++i)
          errors[i] = ds18b20_read_temp (ds18b20s[i], &readings[i]);
       if (!errors[0])
-      {
-         dstemp = readings[0];
-         lasttemp = report ("temp", lasttemp, dstemp, tempplaces);      // Use temp here as no DS18B20
-      }
+         lasttemp = report ("temp", lasttemp, thistemp = readings[0], tempplaces);      // Use temp here as no DS18B20
       if (num_owb > 1 && !errors[1])
          lastotemp = report ("otemp", lastotemp, readings[1], tempplaces);
    }
@@ -586,10 +532,58 @@ app_main ()
          sleep (1);
          continue;
       }
-      char temp[30];
-      sprintf (temp, "%04d-%02d-%02d %02d:%02d:%02d %s", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min,
+      char s[30];
+      sprintf (s, "%04d-%02d-%02d %02d:%02d:%02d %s", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min,
                t->tm_sec, revk_offline ()? "O/L" : "   ");
-      text (1, 0, 0, temp);
-      sleep (1);
+      text (1, 0, 0, s);
+      int x,
+        y = OLEDH - 1,
+         space = (OLEDH - 28 - 35 - 21 - 9) / 3;
+      y -= 28;
+      if (thisco2 < 300)
+         strcpy (s, "____");
+      else if (thisco2 >= 10000)
+         strcpy (s, "^^^^");
+      else
+         sprintf (s, "%4d", (int) thisco2);
+      x = text (4, 0, y, s);
+      text (1, x, y + 9, "CO2");
+      x = text (1, x, y, "ppm");
+      y -= space;               // Space
+      y -= 35;
+      if (f)
+      {                         // Fahrenheit
+         int fh = (thistemp + 40.0) * 1.8 - 40.0;
+         if (fh <= -100)
+            strcpy (s, "___");
+         else if (fh >= 1000)
+            strcpy (s, "^^^");
+         else
+            sprintf (s, "%3d", fh);
+      } else
+      {                         // Celsius
+         if (thistemp <= -10)
+            strcpy (s, "__._");
+         else if (thistemp >= 100)
+            strcpy (s, "^^.^");
+         else
+            sprintf (s, "%4.1f", thistemp);
+      }
+      x = text (5, 10, y, s);
+      x = text (1, x, y + 12, "o");
+      x = text (2, x, y, f ? "F" : "C");
+      y -= space;               // Space
+      y -= 21;
+      if (thisrh <= 0)
+         strcpy (s, "__");
+      else if (thisrh >= 100)
+         strcpy (s, "^^");
+      else
+         sprintf (s, "%2d", (int) thisrh);
+      x = text (3, 0, y, s);
+      x = text (2, x, y, "%");
+      text (1, x, y + 9, "R");
+      x = text (1, x, y, "H");
+      usleep (250000);
    }
 }
