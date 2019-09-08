@@ -416,7 +416,7 @@ co2_task (void *p)
       y -= 28;
       if (co2 < 300)
          strcpy (temp, "____");
-      else if (co2 >= 1000)
+      else if (co2 >= 10000)
          strcpy (temp, "^^^^");
       else
          sprintf (temp, "%4d", (int) co2);
