@@ -27,14 +27,18 @@ const char TAG[] = "CO2";
 	s8(oledsda,-1)	\
 	s8(oledscl,-1)	\
 	s8(oledaddress,0x3C)	\
+	b(f)	\
 
 #define s8(n,d)	int8_t n;
+#define b(n) uint8_t n;
 settings
 #undef s8
-static float lastco2 = 0;
-static float lastrh = 0;
-static float lasttemp = 0;
-static float lastotemp = 0;
+#undef b
+static float lastco2 = -1000;
+static float lastrh = -1000;
+static float lasttemp = -1000;
+static float lastotemp = -1000;
+static float dstemp = -1000;
 static SemaphoreHandle_t i2c_mutex = NULL;
 static SemaphoreHandle_t text_mutex = NULL;
 static int8_t co2port = -1,
@@ -44,18 +48,19 @@ static OneWireBus *owb = NULL;
 static owb_rmt_driver_info rmt_driver_info;
 static DS18B20_Info *ds18b20s[MAX_OWB] = { 0 };
 
+
 static float
 report (const char *tag, float last, float this, int places)
 {
    float mag = powf (10.0, -places);    // Rounding
    if (this < last)
    {
-      this += mag / 5.0;        // Hysteresis
+      this += mag * 0.2;        // Hysteresis
       if (this > mag)
          return last;
    } else if (this > last)
    {
-      this -= mag / 5.0;        // Hysteresis
+      this -= mag * 0.2;        // Hysteresis
       if (this < last)
          return last;
    }
@@ -170,7 +175,7 @@ text (uint8_t size, int x, int y, char *t)
          continue;
       const uint8_t *base = fonts[size - 1] + (c - ' ') * h * w * OLEDB / 8;
       int ww = w;
-      if (c == '.')
+      if (c == '.' || c == ':')
       {
          ww = size * 2;
          base += size * 2 * OLEDB / 8;
@@ -228,8 +233,8 @@ oled_task (void *p)
       int w = 30,
          h = sizeof (ajk) / (w * OLEDB / 8);
       for (int dy = 0; dy < h; dy++)
-         base += oledcopy (80, 10 + h - dy, base, w);
-      text (1, 25, 0, "www.me.uk");
+         base += oledcopy (OLEDW - w, 10 + h - dy, base, w);
+      text (1, 0, 0, "www.me.uk");
    }
 
    char running = 0;
@@ -391,10 +396,12 @@ co2_task (void *p)
                   d[1] = buf[15];
                   d[0] = buf[16];
                   rh = *(float *) d;
+                  if (num_owb)
+                     t = dstemp;
+                  else
+                     lasttemp = report ("temp", lasttemp, t, tempplaces);       // Use temp here as no DS18B20
                   lastco2 = report ("co2", lastco2, co2, co2places);
                   lastrh = report ("rh", lastrh, rh, rhplaces);
-                  if (!num_owb)
-                     lasttemp = report ("temp", lasttemp, t, tempplaces);       // Use temp here as no DS18B20
                }
             }
          }
@@ -418,15 +425,27 @@ co2_task (void *p)
       x = text (1, x, y, "ppm");
       y -= s;                   // Space
       y -= 35;
-      if (t <= -10)
-         strcpy (temp, "__._");
-      else if (t >= 100)
-         strcpy (temp, "^^.^");
-      else
-         sprintf (temp, "%4.1f", t);
-      x = text (5, 0, y, temp);
+      if (f)
+      {                         // Fahrenheit
+         int fh = (t + 40.0) * 1.8 - 40.0;
+         if (fh <= -100)
+            strcpy (temp, "___");
+         else if (fh >= 1000)
+            strcpy (temp, "^^^");
+         else
+            sprintf (temp, "%3d", fh);
+      } else
+      {                         // Celsius
+         if (t <= -10)
+            strcpy (temp, "__._");
+         else if (t >= 100)
+            strcpy (temp, "^^.^");
+         else
+            sprintf (temp, "%4.1f", t);
+      }
+      x = text (5, 10, y, temp);
       x = text (1, x, y + 12, "o");
-      x = text (2, x, y, "C");
+      x = text (2, x, y, f ? "F" : "C");
       y -= s;                   // Space
       y -= 21;
       if (rh <= 0)
@@ -435,7 +454,7 @@ co2_task (void *p)
          strcpy (temp, "^^");
       else
          sprintf (temp, "%2d", (int) rh);
-      x = text (3, 5, y, temp);
+      x = text (3, 0, y, temp);
       x = text (2, x, y, "%");
       text (1, x, y + 9, "R");
       x = text (1, x, y, "H");
@@ -456,7 +475,10 @@ ds18b20_task (void *p)
       for (int i = 0; i < num_owb; ++i)
          errors[i] = ds18b20_read_temp (ds18b20s[i], &readings[i]);
       if (!errors[0])
-         lasttemp = report ("temp", lasttemp, readings[0], tempplaces);
+      {
+         dstemp = readings[0];
+         lasttemp = report ("temp", lasttemp, dstemp, tempplaces);      // Use temp here as no DS18B20
+      }
       if (num_owb > 1 && !errors[1])
          lastotemp = report ("otemp", lastotemp, readings[1], tempplaces);
    }
@@ -466,9 +488,11 @@ void
 app_main ()
 {
    revk_init (&app_command);
+#define b(n) revk_register(#n,0,sizeof(n),&n,NULL,SETTING_BOOLEAN);
 #define s8(n,d) revk_register(#n,0,sizeof(n),&n,#d,SETTING_SIGNED);
    settings
 #undef s8
+#undef b
       text_mutex = xSemaphoreCreateMutex ();    // Shared text access
    if (co2sda >= 0 && co2scl >= 0)
    {
@@ -563,8 +587,9 @@ app_main ()
          continue;
       }
       char temp[30];
-      sprintf (temp, "%04d-%02d-%02d %02d:%02d", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min);
-      text (1, 22, 0, temp);
-      sleep (60 - t->tm_sec);
+      sprintf (temp, "%04d-%02d-%02d %02d:%02d:%02d %s", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min,
+               t->tm_sec, revk_offline ()? "O/L" : "   ");
+      text (1, 0, 0, temp);
+      sleep (1);
    }
 }
