@@ -447,7 +447,7 @@ app_main ()
          .scl_io_num = co2scl,
          .sda_pullup_en = true,
          .scl_pullup_en = true,
-         .master.clk_speed = 200000,
+         .master.clk_speed = 100000,
       };
       if (i2c_param_config (co2port, &config))
       {
