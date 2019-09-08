@@ -552,9 +552,9 @@ app_main ()
    // Main task...
    while (1)
    {
-      time_t now = revk_localtime ();
+      time_t now = time (0);
       struct tm *t;
-      t = gmtime (&now);
+      t = localtime (&now);
       if (t->tm_year < 100)
       {
          sleep (1);
