@@ -172,10 +172,15 @@ text (uint8_t size, int x, int y, char *t)
    while (*t)
    {
       int c = *t++;
-      if (c < ' ' || c >= 0x7F)
+      if (c >= 0x7F)
          continue;
       const uint8_t *base = fonts[size - 1] + (c - ' ') * h * w * OLEDB / 8;
       int ww = w;
+      if (c < ' ')
+      {                         // Sub space
+         ww = size * c;
+         c = ' ';
+      }
       if (c == '.' || c == ':')
       {
          ww = size * 2;
@@ -247,40 +252,45 @@ oled_task (void *p)
          xSemaphoreTake (i2c_mutex, portMAX_DELAY);
       xSemaphoreTake (oled_mutex, portMAX_DELAY);
       oledchanged = 0;
-      i2c_cmd_handle_t t = i2c_cmd_link_create ();
-      i2c_master_start (t);
-      i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
-      i2c_master_write_byte (t, 0x00, true);    // Cmds
-      if (running)
-         i2c_master_write_byte (t, 0xAF, true); // On
-      i2c_master_write_byte (t, 0x15, true);    // Col
-      i2c_master_write_byte (t, 0x00, true);    // 0
-      i2c_master_write_byte (t, 0x7F, true);    // 127
-      i2c_master_write_byte (t, 0x75, true);    // Row
-      i2c_master_write_byte (t, 0x00, true);    // 0
-      i2c_master_write_byte (t, 0x7F, true);    // 127
-      i2c_master_stop (t);
-      e = i2c_master_cmd_begin (oledport, t, 10 / portTICK_PERIOD_MS);
-      i2c_cmd_link_delete (t);
-      for (int y = 0; y < OLEDH; y++)
-      {
+      i2c_cmd_handle_t t;
+      e = 0;
+      if (running < 2)
+      {                         // Set up
+         t = i2c_cmd_link_create ();
+         i2c_master_start (t);
+         i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
+         i2c_master_write_byte (t, 0x00, true); // Cmds
+         if (running)
+            i2c_master_write_byte (t, 0xAF, true);      // On
+         i2c_master_write_byte (t, 0x15, true); // Col
+         i2c_master_write_byte (t, 0x00, true); // 0
+         i2c_master_write_byte (t, 0x7F, true); // 127
+         i2c_master_write_byte (t, 0x75, true); // Row
+         i2c_master_write_byte (t, 0x00, true); // 0
+         i2c_master_write_byte (t, 0x7F, true); // 127
+         i2c_master_stop (t);
+         e = i2c_master_cmd_begin (oledport, t, 100 / portTICK_PERIOD_MS);
+         i2c_cmd_link_delete (t);
+      }
+      if (!e)
+      {                         // data
          t = i2c_cmd_link_create ();
          i2c_master_start (t);
          i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
          i2c_master_write_byte (t, 0x40, true); // Data
-         for (int p = 0; p < OLEDW * OLEDB / 8; p++)
-            i2c_master_write_byte (t, oled[y * OLEDW * OLEDB / 8 + p], true);
+         i2c_master_write (t, oled, sizeof (oled), true);       // Buffer
          i2c_master_stop (t);
-         e = i2c_master_cmd_begin (oledport, t, 10 / portTICK_PERIOD_MS);
+         e = i2c_master_cmd_begin (oledport, t, 100 / portTICK_PERIOD_MS);
          i2c_cmd_link_delete (t);
-         if (e)
-            revk_error ("OLED", "Data failed %s", esp_err_to_name (e));
       }
-      if (!running)
+      if (e)
+         revk_error ("OLED", "Data failed %s", esp_err_to_name (e));
+      if (!running || e)
       {
          running = 1;
          oledchanged = 1;
-      }
+      } else
+         running = 2;
       xSemaphoreGive (oled_mutex);
       if (i2c_mutex)
          xSemaphoreGive (i2c_mutex);
@@ -531,8 +541,7 @@ app_main ()
          t = localtime (&showtime);
          if (t->tm_year > 100)
          {
-            sprintf (s, "%04d-%02d-%02d %02d:%02d:%02d %s", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min,
-                     t->tm_sec, revk_offline ()? "O/L" : "   ");
+            strftime (s, sizeof (s), "%F\004%T\004%Z", t);
             text (1, 0, 0, s);
          }
       }
