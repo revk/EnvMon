@@ -596,7 +596,7 @@ app_main ()
             sprintf (s, "%2d", (int) showrh);
          x = text (3, 0, y, s);
          x = text (2, x, y, "%");
-         text (1, x, y + 9, "R");
+         text (1, x, y + 8, "R");
          x = text (1, x, y, "H");
       }
       y -= space;
