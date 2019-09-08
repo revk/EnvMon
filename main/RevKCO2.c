@@ -57,12 +57,12 @@ report (const char *tag, float last, float this, int places)
    float mag = powf (10.0, -places);    // Rounding
    if (this < last)
    {
-      this += mag * 0.2;        // Hysteresis
+      this += mag * 0.3;        // Hysteresis
       if (this > last)
          return last;
    } else if (this > last)
    {
-      this -= mag * 0.2;        // Hysteresis
+      this -= mag * 0.3;        // Hysteresis
       if (this < last)
          return last;
    }
