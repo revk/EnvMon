@@ -541,7 +541,7 @@ app_main ()
          t = localtime (&showtime);
          if (t->tm_year > 100)
          {
-            strftime (s, sizeof (s), "%F\004%T\004%Z", t);
+            strftime (s, sizeof (s), "%F\004%T %Z", t);
             text (1, 0, 0, s);
          }
       }
