@@ -56,7 +56,7 @@ report (const char *tag, float last, float this, int places)
    if (this < last)
    {
       this += mag * 0.2;        // Hysteresis
-      if (this > mag)
+      if (this > last)
          return last;
    } else if (this > last)
    {
