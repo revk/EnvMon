@@ -3,7 +3,7 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := RevKCO2
+PROJECT_NAME := Env
 
 include $(IDF_PATH)/make/project.mk
 
