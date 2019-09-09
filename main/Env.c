@@ -17,16 +17,16 @@ const char TAG[] = "CO2";
 #define DS18B20_RESOLUTION   (DS18B20_RESOLUTION_12_BIT)
 
 #define settings	\
-	s8(co2sda,-1)	\
-	s8(co2scl,-1)	\
+	s8(co2sda,26)	\
+	s8(co2scl,251)	\
 	s8(co2address,0x61)	\
 	s8(co2places,-1)	\
 	s8(tempplaces,1)	\
 	s8(rhplaces,0)	\
-	s8(ds18b20,-1)	\
-	s8(oledsda,-1)	\
-	s8(oledscl,-1)	\
-	s8(oledaddress,0x3C)	\
+	s8(ds18b20,33)	\
+	s8(oledsda,27)	\
+	s8(oledscl,14)	\
+	s8(oledaddress,0x3D)	\
 	b(f)	\
 
 #define s8(n,d)	int8_t n;
@@ -450,21 +450,27 @@ app_main ()
    {
       co2port = 0;
       if (i2c_driver_install (co2port, I2C_MODE_MASTER, 0, 0, 0))
-         return;
-      i2c_config_t config = {
-         .mode = I2C_MODE_MASTER,
-         .sda_io_num = co2sda,
-         .scl_io_num = co2scl,
-         .sda_pullup_en = true,
-         .scl_pullup_en = true,
-         .master.clk_speed = 100000,
-      };
-      if (i2c_param_config (co2port, &config))
       {
-         i2c_driver_delete (co2port);
-         return;
+         revk_error ("CO2", "I2C config fail");
+         co2port = -1;
+      } else
+      {
+         i2c_config_t config = {
+            .mode = I2C_MODE_MASTER,
+            .sda_io_num = co2sda,
+            .scl_io_num = co2scl,
+            .sda_pullup_en = true,
+            .scl_pullup_en = true,
+            .master.clk_speed = 100000,
+         };
+         if (i2c_param_config (co2port, &config))
+         {
+            i2c_driver_delete (co2port);
+            revk_error ("CO2", "I2C config fail");
+            co2port = -1;
+         } else
+            i2c_set_timeout (co2port, 160000);  // 2ms? allow for clock stretching
       }
-      i2c_set_timeout (co2port, 160000);        // 2ms? allow for clock stretching
    }
    if (oledsda == co2sda && oledscl == co2scl)
    {
@@ -474,23 +480,28 @@ app_main ()
    {                            // Separate OLED port
       oledport = 1;
       if (i2c_driver_install (oledport, I2C_MODE_MASTER, 0, 0, 0))
-         return;
-      i2c_config_t config = {
-         .mode = I2C_MODE_MASTER,
-         .sda_io_num = oledsda,
-         .scl_io_num = oledscl,
-         .sda_pullup_en = true,
-         .scl_pullup_en = true,
-         .master.clk_speed = 100000,
-      };
-      if (i2c_param_config (oledport, &config))
       {
-         i2c_driver_delete (oledport);
-         return;
+         revk_error ("OLED", "I2C config fail");
+         oledport = -1;
+      } else
+      {
+         i2c_config_t config = {
+            .mode = I2C_MODE_MASTER,
+            .sda_io_num = oledsda,
+            .scl_io_num = oledscl,
+            .sda_pullup_en = true,
+            .scl_pullup_en = true,
+            .master.clk_speed = 100000,
+         };
+         if (i2c_param_config (oledport, &config))
+         {
+            i2c_driver_delete (oledport);
+            revk_error ("OLED", "I2C config fail");
+            oledport = -1;
+         } else
+            i2c_set_timeout (oledport, 160000); // 2ms? allow for clock stretching
       }
-      i2c_set_timeout (oledport, 160000);       // 2ms? allow for clock stretching
    }
-
    if (co2port >= 0)
       revk_task ("CO2", co2_task, NULL);
    if (oledport >= 0)
