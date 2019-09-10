@@ -27,6 +27,7 @@ const char TAG[] = "CO2";
 	s8(oledsda,27)	\
 	s8(oledscl,14)	\
 	s8(oledaddress,0x3D)	\
+	b(oledflip)	\
 	b(f)	\
 
 #define s8(n,d)	int8_t n;
@@ -213,7 +214,7 @@ oled_task (void *p)
       i2c_master_write_byte (t, 0x00, true);    // Cmds
       i2c_master_write_byte (t, 0xAE, true);    // Off
       i2c_master_write_byte (t, 0xA0, true);    // Remap
-      i2c_master_write_byte (t, 0x41, true);    // Match display (interlaces row, and swapped col)
+      i2c_master_write_byte (t, oledflip ? 0x41 : 0x52, true);  // Match display
       i2c_master_stop (t);
       e = i2c_master_cmd_begin (oledport, t, 10 / portTICK_PERIOD_MS);
       i2c_cmd_link_delete (t);
