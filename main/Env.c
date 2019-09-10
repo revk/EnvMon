@@ -645,7 +645,7 @@ app_main ()
       }
       y -= space;
       xSemaphoreGive (oled_mutex);
-      usleep (1000000LL - (esp_timer_get_time () % 1000000LL));
+      // Fan control
       const char *fan = NULL;
       if (thisco2 > fanco2 && lastfan != 1)
       {
@@ -662,9 +662,10 @@ app_main ()
          char *data = strchr (topic, ' ');
          if (data)
             *data++ = 0;
-         revk_raw (topic, NULL, data ? strlen (data) : 0, (void*)data, 0);
+         revk_raw (NULL, topic, data ? strlen (data) : 0, data, 0);
          free (topic);
       }
-
+      // Next second
+      usleep (1000000LL - (esp_timer_get_time () % 1000000LL));
    }
 }
