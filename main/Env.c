@@ -87,17 +87,21 @@ report (const char *tag, float last, float this, int places)
    return this;
 }
 
+static void
+sendall (void)
+{
+   lastco2 = -10000;
+   lasttemp = -10000;
+   lastotemp = -10000;
+   lastrh = -10000;
+   lastfan = -1;
+}
+
 const char *
 app_command (const char *tag, unsigned int len, const unsigned char *value)
 {
    if (!strcmp (tag, "connect"))
-   {
-      lastco2 = -10000;
-      lasttemp = -10000;
-      lastotemp = -10000;
-      lastrh = -10000;
-      lastfan = -1;
-   }
+      sendall ();
    return "";
 }
 
@@ -574,6 +578,12 @@ app_main ()
          showtime = now;
          struct tm *t;
          t = localtime (&showtime);
+         static char lasth = -1;
+         if (t->tm_hour != lasth)
+         {
+            lasth = t->tm_hour;
+            sendall ();
+         }
          if (t->tm_year > 100)
          {
             strftime (s, sizeof (s), "%F\004%T %Z", t);
