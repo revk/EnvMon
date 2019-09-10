@@ -21,28 +21,34 @@ const char TAG[] = "CO2";
 	s8(co2scl,251)	\
 	s8(co2address,0x61)	\
 	s8(co2places,-1)	\
-	u32(co2damp,20)	\
+	u32(co2damp,100)	\
 	s8(tempplaces,1)	\
 	s8(rhplaces,0)	\
-	u32(rhdamp,20)	\
+	u32(rhdamp,10)	\
 	s8(ds18b20,33)	\
 	s8(oledsda,27)	\
 	s8(oledscl,14)	\
 	s8(oledaddress,0x3D)	\
 	b(oledflip)	\
 	b(f)	\
+	s(fanon)	\
+	s(fanoff)	\
+	u32(fanco2,1000)	\
 
 #define u32(n,d)	uint32_t n;
 #define s8(n,d)	int8_t n;
 #define b(n) uint8_t n;
+#define s(n) char * n;
 settings
 #undef u32
 #undef s8
 #undef b
+#undef s
 static float lastco2 = -10000;
 static float lastrh = -10000;
 static float lasttemp = -10000;
 static float lastotemp = -10000;
+static int lastfan = -1;
 static float thisco2 = -10000;
 static float thistemp = -10000;
 static float thisrh = -10000;
@@ -90,6 +96,7 @@ app_command (const char *tag, unsigned int len, const unsigned char *value)
       lasttemp = -10000;
       lastotemp = -10000;
       lastrh = -10000;
+      lastfan = -1;
    }
    return "";
 }
@@ -456,10 +463,12 @@ app_main ()
 #define b(n) revk_register(#n,0,sizeof(n),&n,NULL,SETTING_BOOLEAN);
 #define u32(n,d) revk_register(#n,0,sizeof(n),&n,#d,0);
 #define s8(n,d) revk_register(#n,0,sizeof(n),&n,#d,SETTING_SIGNED);
+#define s(n) revk_register(#n,0,0,&n,NULL,0);
    settings
 #undef u32
 #undef s8
 #undef b
+#undef s
       oled_mutex = xSemaphoreCreateMutex ();    // Shared text access
    if (co2sda >= 0 && co2scl >= 0)
    {
@@ -637,5 +646,25 @@ app_main ()
       y -= space;
       xSemaphoreGive (oled_mutex);
       usleep (1000000LL - (esp_timer_get_time () % 1000000LL));
+      const char *fan = NULL;
+      if (thisco2 > fanco2 && lastfan != 1)
+      {
+         fan = fanon;
+         lastfan = 1;
+      } else if (thisco2 < fanco2 && lastfan != 0)
+      {
+         fan = fanoff;
+         lastfan = 0;
+      }
+      if (fan && *fan)
+      {
+         char *topic = strdup (fan);
+         char *data = strchr (topic, ' ');
+         if (data)
+            *data++ = 0;
+         revk_raw (topic, NULL, data ? strlen (data) : 0, (void*)data, 0);
+         free (topic);
+      }
+
    }
 }
