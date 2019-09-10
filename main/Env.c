@@ -21,8 +21,10 @@ const char TAG[] = "CO2";
 	s8(co2scl,251)	\
 	s8(co2address,0x61)	\
 	s8(co2places,-1)	\
+	u32(co2damp,20)	\
 	s8(tempplaces,1)	\
 	s8(rhplaces,0)	\
+	u32(rhdamp,20)	\
 	s8(ds18b20,33)	\
 	s8(oledsda,27)	\
 	s8(oledscl,14)	\
@@ -30,18 +32,20 @@ const char TAG[] = "CO2";
 	b(oledflip)	\
 	b(f)	\
 
+#define u32(n,d)	uint32_t n;
 #define s8(n,d)	int8_t n;
 #define b(n) uint8_t n;
 settings
+#undef u32
 #undef s8
 #undef b
-static float lastco2 = -1000;
-static float lastrh = -1000;
-static float lasttemp = -1000;
-static float lastotemp = -1000;
-static float thisco2 = -1000;
-static float thistemp = -1000;
-static float thisrh = -1000;
+static float lastco2 = -10000;
+static float lastrh = -10000;
+static float lasttemp = -10000;
+static float lastotemp = -10000;
+static float thisco2 = -10000;
+static float thistemp = -10000;
+static float thisrh = -10000;
 static SemaphoreHandle_t i2c_mutex = NULL;
 static SemaphoreHandle_t oled_mutex = NULL;
 static int8_t co2port = -1,
@@ -393,7 +397,7 @@ co2_task (void *p)
                   d[2] = buf[1];
                   d[1] = buf[3];
                   d[0] = buf[4];
-                  thisco2 = *(float *) d;
+                  float co2 = *(float *) d;
                   d[3] = buf[6];
                   d[2] = buf[7];
                   d[1] = buf[9];
@@ -403,7 +407,15 @@ co2_task (void *p)
                   d[2] = buf[13];
                   d[1] = buf[15];
                   d[0] = buf[16];
-                  thisrh = *(float *) d;
+                  float rh = *(float *) d;
+                  if (thisco2 < 0)
+                     thisco2 = co2;
+                  else
+                     thisco2 = (thisco2 * co2damp + co2) / (co2damp + 1);
+                  if (thisrh < 0)
+                     thisrh = rh;
+                  else
+                     thisrh = (thisrh * rhdamp + rh) / (rhdamp + 1);
                   if (!num_owb)
                      lasttemp = report ("temp", lasttemp, thistemp = t, tempplaces);    // Use temp here as no DS18B20
                   lastco2 = report ("co2", lastco2, thisco2, co2places);
@@ -442,8 +454,10 @@ app_main ()
 {
    revk_init (&app_command);
 #define b(n) revk_register(#n,0,sizeof(n),&n,NULL,SETTING_BOOLEAN);
+#define u32(n,d) revk_register(#n,0,sizeof(n),&n,#d,0);
 #define s8(n,d) revk_register(#n,0,sizeof(n),&n,#d,SETTING_SIGNED);
    settings
+#undef u32
 #undef s8
 #undef b
       oled_mutex = xSemaphoreCreateMutex ();    // Shared text access
