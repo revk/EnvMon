@@ -7,12 +7,13 @@
 compw=45;
 comph=37;
 compt=1.6+9+1.6;
-compclear=0.2;
+compclear=0.4;
 
 // Box thickness reference to component cube
-base=2;
-top=5;
-side=2;
+base=2.2;
+top=4.5;
+side=2.5;
+sidet=0.05; // Gap in side clips
 
 $fn=48;
 
@@ -25,12 +26,24 @@ module esp32()
     cube([25.500,18,1]);
     translate([1,1,0])
     cube([18,16,3]);
+    translate([1,-1,0])
+    cube([18,20,2]); // SOlder
 }
 
 module microusb()
 { // MicroUSB
     cube([8.150,5.080,4]);
     cube([8.150,5.080+1,0.5]);
+}
+
+module smd1206()
+{ // 1206
+    translate([-0.5,-0.5,0])
+    cube([3.2+1,1.6+1,1]); // Larger to allow for position error
+    translate([-1,-1,0])
+    cube([2,1.6+1+1,0.9]); // Solder
+    translate([3.2-1,-1,0])
+    cube([2,1.6+1+1,0.9]); // Solder
 }
 
 module spox(n,hole=false)
@@ -93,18 +106,21 @@ module comp(hole=false)
                 pins(32.075,7.225,0.750,2*2.5,0);
                 pins(33.360,31.978,0.901,2*2.54,0);
                 pins(33.360,34.837,0.901,2.54,0);
-                translate([34.400-0.5,4.480-0.5,0])
-                cube([3.2+1,1.6+1,1]);
+                translate([34.400,4.480,0])
+                smd1206();
                 if(hole)
                     translate([32.548,36.510,,0])
                     cube([5.232,1.440,top*2]);
                 translate([30,1,-1.6])
                 mirror([0,0,1])
                 spox(3,hole);
-                translate([1,19.715+12.4,-1.6])
-                mirror([0,0,1])
-                rotate([0,0,-90])
-                spox(4,hole);
+                if(0)
+                { // re-flash port, not needed externally
+                    translate([1,19.715+12.4,-1.6])
+                    mirror([0,0,1])
+                    rotate([0,0,-90])
+                    spox(4,hole);
+                }
             }
             // Connectors
             if(hole)
@@ -133,10 +149,10 @@ module comp(hole=false)
         if(hole)
         hull()
         {
-            translate([5,0.5,-1.55-1])
-            cube([34,30,1]);
-            translate([5-5,0.5-5,-1.55-1-20])
-            cube([34+10,30+10,1]);
+            translate([7,1,-1.55-1])
+            cube([30,29,1]);
+            translate([7-5,1-5,-1.55-1-20])
+            cube([30+10,30+10,1]);
         }
     }
 }
@@ -157,14 +173,14 @@ module case()
 
 // Cut line
 // Defines how case is cut, this is the solid area encompassing bottom half of case
-module cut()
+module cut(a=false)
 {
     difference()
     {
         translate([-10,-10,-10])
         cube([compw+side*2+20,comph+side*2+20,(base+compt+top)/2+10]);
-        translate([side/2,side/2,(base+compt+top)/2-side/2])
-        cube([compw+side,comph+side,side*2]);
+        translate([side/2-(a?sidet:-sidet),side/2-(a?sidet:-sidet),(base+compt+top)/2-side/2-(a?sidet:-sidet)])
+        cube([compw+side+2*(a?sidet:-sidet),comph+side+2*(a?sidet:-sidet),side*2]);
     }
     translate([side-1+26.070,side-1+10.348,base+compt+0-20])
     hull()
@@ -207,7 +223,7 @@ module a()
     intersection()
     {
         casecomp();
-        cut();
+        cut(true);
     }
 }
 
@@ -219,7 +235,7 @@ module b()
     difference()
     {
         casecomp();
-        cut();
+        cut(false);
     }
 }
 
