@@ -7,6 +7,7 @@
 compw=45;
 comph=37;
 compt=1.6+9+1.6;
+compclear=0.2;
 
 // Box thickness reference to component cube
 base=2;
@@ -53,9 +54,9 @@ module pins(x,y,s,w,h)
     translate([x+s/2,y+s/2,0])
     hull()
     {
-        cylinder(d1=3,d2=s,h=2,$fn=8);
+        cylinder(d1=4,d2=s,h=2,$fn=8);
         translate([w,h,0])
-        cylinder(d1=3,d2=s,h=2,$fn=8);
+        cylinder(d1=4,d2=s,h=2,$fn=8);
     }
 }
 
@@ -103,7 +104,7 @@ module comp(hole=false)
                 translate([1,19.715+12.4,-1.6])
                 mirror([0,0,1])
                 rotate([0,0,-90])
-                spox(4,hole);     
+                spox(4,hole);
             }
             // Connectors
             if(hole)
@@ -112,7 +113,16 @@ module comp(hole=false)
                 cube([8.150,3,4]);
                 translate([11.800-1,-side*2-2,compt-1])
                 cube([10.3,side*2,6]);
-                
+                translate([19,-20,6.6])
+                cube([3,25,1]); // Air hole
+                for(y=[14,31])
+                translate([16,y,compt])
+                { // Screw
+                    cylinder(d=7,h=1);
+                    translate([0,0,1])
+                    cylinder(d1=7,d2=3,h=2);
+                    cylinder(d=3,h=top*2);
+                }
             }
         }
     }
@@ -136,7 +146,13 @@ module comp(hole=false)
 // Typically solid, as comp is removed from it
 module case()
 {
-    cube([compw+side*2,comph+side*2,base+compt+top]);
+    hull()
+    {
+        translate([side/2,side/2,0])
+        cube([compw+side,comph+side,base+compt+top]);
+        translate([0,0,side/2])
+        cube([compw+side*2,comph+side*2,base+compt+top-side/2]);
+    }
 }
 
 // Cut line
@@ -157,12 +173,12 @@ module cut()
         translate([0,-2,0])
         cube([30,18+4,1]);
     }
-    translate([side-1+11.800,side-1+1.000-20,base+compt-10])
+    translate([side-1+11.800,side-1+1.000-20,base+compt-7])
     hull()
     { // USB
-        cube([8.15,30,10.001]);
-        translate([-2,0,0])
-        cube([8.15+4,30,1]);
+        cube([8.15,30,7.001]);
+        translate([-5,0,0])
+        cube([8.15+10,30,1]);
     }
     translate([side-1+30,side-1+1-15,base+compt-1.6-10-4.9])
     hull()
@@ -181,7 +197,7 @@ module casecomp()
         minkowski()
         {
             comp(true);
-            cube(0.2,center=true);
+            cube(compclear,center=true);
         }
     }
 }
