@@ -11,7 +11,7 @@ compclear=0.4;
 
 // Box thickness reference to component cube
 base=2.2;
-top=4.5;
+top=4.6;
 side=2.5;
 sidet=0.05; // Gap in side clips
 
@@ -182,12 +182,12 @@ module cut(a=false)
         translate([side/2-(a?sidet:-sidet),side/2-(a?sidet:-sidet),(base+compt+top)/2-side/2-(a?sidet:-sidet)])
         cube([compw+side+2*(a?sidet:-sidet),comph+side+2*(a?sidet:-sidet),side*2]);
     }
-    translate([side-1+26.070,side-1+10.348,base+compt+0-20])
+    translate([side-1+26.070,side-1+10.348,base+compt-10])
     hull()
     { // ESP32
-        cube([30,18,20+1]);
-        translate([0,-2,0])
-        cube([30,18+4,1]);
+        cube([30,18,10]);
+        translate([0,-5,0])
+        cube([30,18+10,1]);
     }
     translate([side-1+11.800,side-1+1.000-20,base+compt-7])
     hull()
