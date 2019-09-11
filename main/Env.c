@@ -155,7 +155,7 @@ oledcopy (int x, int y, const uint8_t * src, int dx)
    return dx * OLEDB / 8;       // Bytes (would be) copied
 }
 
-#include "ajk.h"
+#include CONFIG_ENV_LOGO
 #include "font1.h"
 #include "font2.h"
 #include "font3.h"
@@ -227,7 +227,8 @@ oled_task (void *p)
       i2c_master_start (t);
       i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
       i2c_master_write_byte (t, 0x00, true);    // Cmds
-      i2c_master_write_byte (t, 0xAE, true);    // Off
+      i2c_master_write_byte (t, 0xA5, true);    // White
+      i2c_master_write_byte (t, 0xAF, true);    // On
       i2c_master_write_byte (t, 0xA0, true);    // Remap
       i2c_master_write_byte (t, oledflip ? 0x41 : 0x52, true);  // Match display
       i2c_master_stop (t);
@@ -248,12 +249,11 @@ oled_task (void *p)
 
    memset (oled, 0x00, sizeof (oled));  // Blank
    {
-      const uint8_t *base = ajk;
-      int w = 30,
-         h = sizeof (ajk) / (w * OLEDB / 8);
+      int w = sizeof (logo[0]) * 8 / OLEDB;
+      int h = sizeof (logo) / sizeof(*logo);
       for (int dy = 0; dy < h; dy++)
-         base += oledcopy (OLEDW - w, 10 + h - dy, base, w);
-      text (1, 0, 0, "www.me.uk");
+         oledcopy (OLEDW - w, 10 + h - dy, logo[dy], w);
+      text (1, 0, 0, CONFIG_ENV_TAG);
    }
 
    char running = 0;
@@ -277,7 +277,7 @@ oled_task (void *p)
          i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
          i2c_master_write_byte (t, 0x00, true); // Cmds
          if (running)
-            i2c_master_write_byte (t, 0xAF, true);      // On
+            i2c_master_write_byte (t, 0xA4, true);      // Normal mode
          i2c_master_write_byte (t, 0x15, true); // Col
          i2c_master_write_byte (t, 0x00, true); // 0
          i2c_master_write_byte (t, 0x7F, true); // 127

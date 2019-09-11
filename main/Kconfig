@@ -1,0 +1,15 @@
+menu "Env"
+
+	config ENV_LOGO
+	string "Logo file"
+	default "logo.h"
+	help
+		Defines the logo file to display
+
+	config ENV_TAG
+	string "Tag line"
+	default "www.aa.net.uk"
+	help
+		Defines the displayed text on start up
+
+endmenu
