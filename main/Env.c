@@ -17,17 +17,17 @@ const char TAG[] = "CO2";
 #define DS18B20_RESOLUTION   (DS18B20_RESOLUTION_12_BIT)
 
 #define settings	\
-	s8(co2sda,26)	\
-	s8(co2scl,251)	\
+	s8(co2sda,17)	\
+	s8(co2scl,16)	\
 	s8(co2address,0x61)	\
 	s8(co2places,-1)	\
 	u32(co2damp,100)	\
 	s8(tempplaces,1)	\
 	s8(rhplaces,0)	\
 	u32(rhdamp,10)	\
-	s8(ds18b20,33)	\
-	s8(oledsda,27)	\
-	s8(oledscl,14)	\
+	s8(ds18b20,19)	\
+	s8(oledsda,5)	\
+	s8(oledscl,18)	\
 	s8(oledaddress,0x3D)	\
 	b(oledflip)	\
 	b(f)	\
