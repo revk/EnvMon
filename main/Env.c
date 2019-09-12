@@ -250,7 +250,7 @@ oled_task (void *p)
    memset (oled, 0x00, sizeof (oled));  // Blank
    {
       int w = sizeof (logo[0]) * 8 / OLEDB;
-      int h = sizeof (logo) / sizeof(*logo);
+      int h = sizeof (logo) / sizeof (*logo);
       for (int dy = 0; dy < h; dy++)
          oledcopy (OLEDW - w, 10 + h - dy, logo[dy], w);
       text (1, 0, 0, CONFIG_ENV_TAG);
@@ -419,14 +419,20 @@ co2_task (void *p)
                   d[1] = buf[15];
                   d[0] = buf[16];
                   float rh = *(float *) d;
-                  if (thisco2 < 0)
-                     thisco2 = co2;
-                  else
-                     thisco2 = (thisco2 * co2damp + co2) / (co2damp + 1);
-                  if (thisrh < 0)
-                     thisrh = rh;
-                  else
-                     thisrh = (thisrh * rhdamp + rh) / (rhdamp + 1);
+                  if (co2)
+                  {
+                     if (thisco2 < 0)
+                        thisco2 = co2;
+                     else
+                        thisco2 = (thisco2 * co2damp + co2) / (co2damp + 1);
+                  }
+                  if (rh)
+                  {
+                     if (thisrh < 0)
+                        thisrh = rh;
+                     else
+                        thisrh = (thisrh * rhdamp + rh) / (rhdamp + 1);
+                  }
                   if (!num_owb)
                      lasttemp = report ("temp", lasttemp, thistemp = t, tempplaces);    // Use temp here as no DS18B20
                   lastco2 = report ("co2", lastco2, thisco2, co2places);
@@ -653,6 +659,8 @@ app_main ()
          text (1, x, y + 8, "R");
          x = text (1, x, y, "H");
       }
+      if (fanco2)
+         text (3, 58, y, thisco2 > fanco2 ? "*" : " ");
       y -= space;
       xSemaphoreGive (oled_mutex);
       // Fan control
