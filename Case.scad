@@ -7,10 +7,10 @@
 compw=45;
 comph=37;
 compt=1.6+9+1.6;
-compclear=0.4;
+compclear=0.5;
 
 // Box thickness reference to component cube
-base=2.2;
+base=2.6;
 top=4.6;
 side=2.5;
 sidet=0.05; // Gap in side clips
@@ -67,9 +67,9 @@ module pins(x,y,s,w,h)
     translate([x+s/2,y+s/2,0])
     hull()
     {
-        cylinder(d1=4,d2=s,h=2,$fn=8);
+        cylinder(d1=4,d2=s,h=3,$fn=8);
         translate([w,h,0])
-        cylinder(d1=4,d2=s,h=2,$fn=8);
+        cylinder(d1=4,d2=s,h=3,$fn=8);
     }
 }
 
@@ -102,8 +102,8 @@ module comp(hole=false)
                 microusb();
                 pins(4.993,9.440,0.901,0,3*2.54);
                 pins(7.818,2.820,0.901,0,3*2.54);
-                pins(7.225,21.750,0.750,0,3*2.5);
-                pins(32.075,7.225,0.750,2*2.5,0);
+                pins(7.150,21.675,0.900,0,3*2.5);
+                pins(32.000,7.150,0.900,2*2.5,0);
                 pins(33.360,31.978,0.901,2*2.54,0);
                 pins(33.360,34.837,0.901,2.54,0);
                 translate([34.400,4.480,0])
@@ -144,15 +144,17 @@ module comp(hole=false)
     }
     translate([side,side,base])
     { // OLED
-        translate([5,0,-1.55])
-        cube([34,37,1.55]);
+        translate([5,0,-2])
+        cube([35,37,2]);
+        translate([2,7,-2])
+        cube([3,14,2]);
         if(hole)
         hull()
         {
-            translate([7,1,-1.55-1])
-            cube([30,29,1]);
-            translate([7-5,1-5,-1.55-1-20])
-            cube([30+10,30+10,1]);
+            translate([7,2,-2-1])
+            cube([30,28,1]);
+            translate([7-5,2-5,-2-1-20])
+            cube([30+10,28+10,1]);
         }
     }
 }
