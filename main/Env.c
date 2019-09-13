@@ -419,17 +419,17 @@ co2_task (void *p)
                   d[1] = buf[15];
                   d[0] = buf[16];
                   float rh = *(float *) d;
-                  if (co2)
-                  {
+                  if (co2 > 100)
+                  {             // Sanity check
                      if (thisco2 < 0)
-                        thisco2 = co2;
+                        thisco2 = co2;  // First
                      else
                         thisco2 = (thisco2 * co2damp + co2) / (co2damp + 1);
                   }
                   if (rh)
                   {
                      if (thisrh < 0)
-                        thisrh = rh;
+                        thisrh = rh;    // First
                      else
                         thisrh = (thisrh * rhdamp + rh) / (rhdamp + 1);
                   }
