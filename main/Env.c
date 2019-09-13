@@ -55,7 +55,8 @@ static int lastfan = -1;
 static float thisco2 = -10000;
 static float thistemp = -10000;
 static float thisrh = -10000;
-static SemaphoreHandle_t i2c_mutex = NULL;
+static SemaphoreHandle_t co2i2c_mutex = NULL;
+static SemaphoreHandle_t oledi2c_mutex = NULL;
 static SemaphoreHandle_t oled_mutex = NULL;
 static int8_t co2port = -1,
    oledport = -1;
@@ -67,6 +68,8 @@ static DS18B20_Info *ds18b20s[MAX_OWB] = { 0 };
 static volatile uint8_t oled_update = 0;
 static volatile uint8_t oled_contrast = 0;
 static volatile uint8_t oled_changed = 1;
+
+static const char * co2_setting (uint16_t cmd, uint16_t val);
 
 static float
 report (const char *tag, float last, float this, int places)
@@ -117,6 +120,16 @@ app_command (const char *tag, unsigned int len, const unsigned char *value)
       xSemaphoreGive (oled_mutex);
       return "";                // OK
    }
+   if (!strcmp (tag, "co2autocal"))
+      return co2_setting (0x5306, 1);
+   if (!strcmp (tag, "co2nocal"))
+      return co2_setting (0x5306, 0);
+   if (!strcmp (tag, "co2cal"))
+      return co2_setting (0x5204, atoi ((char*)value));
+   if (!strcmp (tag, "co2tempoffset"))
+      return co2_setting (0x5403, atoi ((char*)value));
+   if (!strcmp (tag, "co2alt"))
+      return co2_setting (0x5102, atoi ((char*)value));
    return NULL;
 }
 
@@ -234,8 +247,7 @@ oled_task (void *p)
    esp_err_t e;
    while (try--)
    {
-      if (i2c_mutex)
-         xSemaphoreTake (i2c_mutex, portMAX_DELAY);
+      xSemaphoreTake (oledi2c_mutex, portMAX_DELAY);
       oled_changed = 0;
       i2c_cmd_handle_t t = i2c_cmd_link_create ();
       i2c_master_start (t);
@@ -248,8 +260,7 @@ oled_task (void *p)
       i2c_master_stop (t);
       e = i2c_master_cmd_begin (oledport, t, 10 / portTICK_PERIOD_MS);
       i2c_cmd_link_delete (t);
-      if (i2c_mutex)
-         xSemaphoreGive (i2c_mutex);
+      xSemaphoreGive (oledi2c_mutex);
       if (!e)
          break;
       sleep (1);
@@ -277,8 +288,7 @@ oled_task (void *p)
          usleep (100000);
          continue;
       }
-      if (i2c_mutex)
-         xSemaphoreTake (i2c_mutex, portMAX_DELAY);
+      xSemaphoreTake (oledi2c_mutex, portMAX_DELAY);
       xSemaphoreTake (oled_mutex, portMAX_DELAY);
       oled_changed = 0;
       i2c_cmd_handle_t t;
@@ -323,9 +333,63 @@ oled_task (void *p)
          oled_changed = 1;
       }
       xSemaphoreGive (oled_mutex);
-      if (i2c_mutex)
-         xSemaphoreGive (i2c_mutex);
+      xSemaphoreGive (oledi2c_mutex);
    }
+}
+
+static uint8_t
+co2_crc (uint8_t b1, uint8_t b2)
+{
+   uint8_t crc = 0xFF;
+   void b (uint8_t v)
+   {
+      crc ^= v;
+      uint8_t n = 8;
+      while (n--)
+      {
+         if (crc & 0x80)
+            crc = (crc << 1) ^ 0x31;
+         else
+            crc <<= 1;
+      }
+   }
+   b (b1);
+   b (b2);
+   return crc;
+}
+
+static i2c_cmd_handle_t
+co2_cmd (uint16_t c)
+{
+   i2c_cmd_handle_t i = i2c_cmd_link_create ();
+   i2c_master_start (i);
+   i2c_master_write_byte (i, (co2address << 1), ACK_CHECK_EN);
+   i2c_master_write_byte (i, c >> 8, ACK_CHECK_EN);
+   i2c_master_write_byte (i, c, ACK_CHECK_EN);
+   return i;
+}
+
+static void
+co2_add (i2c_cmd_handle_t i, uint16_t v)
+{
+   i2c_master_write_byte (i, v >> 8, true);
+   i2c_master_write_byte (i, v, true);
+   i2c_master_write_byte (i, co2_crc (v >> 8, v), true);
+}
+
+static const char *
+co2_setting (uint16_t cmd, uint16_t val)
+{
+   xSemaphoreTake (co2i2c_mutex, portMAX_DELAY);
+   i2c_cmd_handle_t i = co2_cmd (cmd);
+   co2_add (i, val);
+   i2c_master_stop (i);
+   esp_err_t e = i2c_master_cmd_begin (co2port, i, 10 / portTICK_PERIOD_MS);
+   i2c_cmd_link_delete (i);
+   xSemaphoreGive (co2i2c_mutex);
+   if (e)
+      return esp_err_to_name (e);
+return "";
 }
 
 void
@@ -336,21 +400,13 @@ co2_task (void *p)
    esp_err_t e;
    while (try--)
    {
-      if (i2c_mutex)
-         xSemaphoreTake (i2c_mutex, portMAX_DELAY);
-      i2c_cmd_handle_t i = i2c_cmd_link_create ();
-      i2c_master_start (i);
-      i2c_master_write_byte (i, (co2address << 1), ACK_CHECK_EN);
-      i2c_master_write_byte (i, 0x00, ACK_CHECK_EN);    // 0010=start measurements
-      i2c_master_write_byte (i, 0x10, ACK_CHECK_EN);
-      i2c_master_write_byte (i, 0x00, ACK_CHECK_EN);    // Pressure (0=unknown)
-      i2c_master_write_byte (i, 0x00, ACK_CHECK_EN);
-      i2c_master_write_byte (i, 0x81, ACK_CHECK_EN);    // CRC
+      xSemaphoreTake (co2i2c_mutex, portMAX_DELAY);
+      i2c_cmd_handle_t i = co2_cmd (0x0010);    // Start measurement
+      co2_add (i, 0);           // 0=unknown
       i2c_master_stop (i);
       e = i2c_master_cmd_begin (co2port, i, 10 / portTICK_PERIOD_MS);
       i2c_cmd_link_delete (i);
-      if (i2c_mutex)
-         xSemaphoreGive (i2c_mutex);
+      xSemaphoreGive (co2i2c_mutex);
       if (!e)
          break;
       sleep (1);
@@ -365,13 +421,8 @@ co2_task (void *p)
    while (1)
    {
       usleep (100000);
-      if (i2c_mutex)
-         xSemaphoreTake (i2c_mutex, portMAX_DELAY);
-      i2c_cmd_handle_t i = i2c_cmd_link_create ();
-      i2c_master_start (i);
-      i2c_master_write_byte (i, (co2address << 1), ACK_CHECK_EN);
-      i2c_master_write_byte (i, 0x02, ACK_CHECK_EN);    // 0202 get reading state
-      i2c_master_write_byte (i, 0x02, ACK_CHECK_EN);
+      xSemaphoreTake (co2i2c_mutex, portMAX_DELAY);
+      i2c_cmd_handle_t i = co2_cmd (0x0202);    // Get ready state
       i2c_master_stop (i);
       esp_err_t err = i2c_master_cmd_begin (co2port, i, 10 / portTICK_PERIOD_MS);
       i2c_cmd_link_delete (i);
@@ -390,13 +441,11 @@ co2_task (void *p)
          i2c_cmd_link_delete (i);
          if (err)
             ESP_LOGI (TAG, "Rx GetReady %s", esp_err_to_name (err));
+         else if (co2_crc (buf[0], buf[1]) != buf[2])
+            ESP_LOGI (TAG, "Rx GetReady CRC error %02X %02X", co2_crc (buf[0], buf[1]), buf[2]);
          else if ((buf[0] << 8) + buf[1] == 1)
          {
-            i = i2c_cmd_link_create ();
-            i2c_master_start (i);
-            i2c_master_write_byte (i, (co2address << 1), ACK_CHECK_EN);
-            i2c_master_write_byte (i, 0x03, ACK_CHECK_EN);      // 0300 Read data
-            i2c_master_write_byte (i, 0x00, ACK_CHECK_EN);
+            i2c_cmd_handle_t i = co2_cmd (0x0300);      // Read data
             i2c_master_stop (i);
             esp_err_t err = i2c_master_cmd_begin (co2port, i, 10 / portTICK_PERIOD_MS);
             i2c_cmd_link_delete (i);
@@ -424,16 +473,22 @@ co2_task (void *p)
                   d[1] = buf[3];
                   d[0] = buf[4];
                   float co2 = *(float *) d;
+                  if (co2_crc (buf[0], buf[1]) != buf[2] || co2_crc (buf[3], buf[4]) != buf[5])
+                     co2 = -1;
                   d[3] = buf[6];
                   d[2] = buf[7];
                   d[1] = buf[9];
                   d[0] = buf[10];
                   float t = *(float *) d;
+                  if (co2_crc (buf[6], buf[7]) != buf[8] || co2_crc (buf[9], buf[10]) != buf[11])
+                     t = -1000;
                   d[3] = buf[12];
                   d[2] = buf[13];
                   d[1] = buf[15];
                   d[0] = buf[16];
                   float rh = *(float *) d;
+                  if (co2_crc (buf[12], buf[13]) != buf[14] || co2_crc (buf[15], buf[16]) != buf[17])
+                     rh = -1000;
                   if (co2 > 100)
                   {             // Sanity check
                      if (thisco2 < 0)
@@ -441,14 +496,14 @@ co2_task (void *p)
                      else
                         thisco2 = (thisco2 * co2damp + co2) / (co2damp + 1);
                   }
-                  if (rh)
+                  if (rh > 0)
                   {
                      if (thisrh < 0)
                         thisrh = rh;    // First
                      else
                         thisrh = (thisrh * rhdamp + rh) / (rhdamp + 1);
                   }
-                  if (!num_owb)
+                  if (!num_owb && t >= -1000)
                      lasttemp = report ("temp", lasttemp, thistemp = t, tempplaces);    // Use temp here as no DS18B20
                   lastco2 = report ("co2", lastco2, thisco2, co2places);
                   lastrh = report ("rh", lastrh, thisrh, rhplaces);
@@ -456,8 +511,7 @@ co2_task (void *p)
             }
          }
       }
-      if (i2c_mutex)
-         xSemaphoreGive (i2c_mutex);
+      xSemaphoreGive (co2i2c_mutex);
    }
 }
 
@@ -523,11 +577,12 @@ app_main ()
          } else
             i2c_set_timeout (co2port, 160000);  // 2ms? allow for clock stretching
       }
+      co2i2c_mutex = xSemaphoreCreateMutex ();
    }
    if (oledsda == co2sda && oledscl == co2scl)
    {
       oledport = co2port;
-      i2c_mutex = xSemaphoreCreateMutex ();     // Shared I2C
+      oledi2c_mutex = co2i2c_mutex;     // Shared
    } else if (oledsda >= 0 && oledscl >= 0)
    {                            // Separate OLED port
       oledport = 1;
@@ -553,6 +608,7 @@ app_main ()
          } else
             i2c_set_timeout (oledport, 160000); // 2ms? allow for clock stretching
       }
+      oledi2c_mutex = xSemaphoreCreateMutex ();
    }
    if (co2port >= 0)
       revk_task ("CO2", co2_task, NULL);
