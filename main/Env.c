@@ -299,7 +299,7 @@ oled_task (void *p)
          i2c_master_start (t);
          i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
          i2c_master_write_byte (t, 0x00, true); // Cmds
-         if (!oled_update)
+         if (oled_update)
             i2c_master_write_byte (t, 0xA4, true);      // Normal mode
          oled_update = 2;
          i2c_master_write_byte (t, 0x81, true); // Contrast
