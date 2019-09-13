@@ -8,5 +8,5 @@ PROJECT_NAME := Env
 include $(IDF_PATH)/make/project.mk
 
 update:
-	git submodule update --remote --merge
+	git submodule update --init --recursive
 	git commit -a -m "Library update"
