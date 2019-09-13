@@ -29,6 +29,7 @@ const char TAG[] = "CO2";
 	s8(oledsda,5)	\
 	s8(oledscl,18)	\
 	s8(oledaddress,0x3D)	\
+	u8(oledcontrast,255)	\
 	b(oledflip)	\
 	b(f)	\
 	s(fanon)	\
@@ -37,11 +38,13 @@ const char TAG[] = "CO2";
 
 #define u32(n,d)	uint32_t n;
 #define s8(n,d)	int8_t n;
+#define u8(n,d)	int8_t n;
 #define b(n) uint8_t n;
 #define s(n) char * n;
 settings
 #undef u32
 #undef s8
+#undef u8
 #undef b
 #undef s
 static float lastco2 = -10000;
@@ -61,6 +64,8 @@ static OneWireBus *owb = NULL;
 static owb_rmt_driver_info rmt_driver_info;
 static DS18B20_Info *ds18b20s[MAX_OWB] = { 0 };
 
+static uint8_t oled_update = 0;
+static uint8_t oled_contrast = 0;
 
 static float
 report (const char *tag, float last, float this, int places)
@@ -102,7 +107,14 @@ app_command (const char *tag, unsigned int len, const unsigned char *value)
 {
    if (!strcmp (tag, "connect"))
       sendall ();
-   return "";
+   if (!strcmp (tag, "contrast"))
+   {
+      oled_contrast = atoi ((char *) value);
+      if (oled_update)
+         oled_update = 1;
+      return "";                // OK
+   }
+   return NULL;
 }
 
 #define	OLEDW	128
@@ -256,7 +268,6 @@ oled_task (void *p)
       text (1, 0, 0, CONFIG_ENV_TAG);
    }
 
-   char running = 0;
    while (1)
    {                            // Update
       if (!oledchanged)
@@ -270,14 +281,16 @@ oled_task (void *p)
       oledchanged = 0;
       i2c_cmd_handle_t t;
       e = 0;
-      if (running < 2)
+      if (oled_update < 2)
       {                         // Set up
          t = i2c_cmd_link_create ();
          i2c_master_start (t);
          i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
          i2c_master_write_byte (t, 0x00, true); // Cmds
-         if (running)
+         if (oled_update)
             i2c_master_write_byte (t, 0xA4, true);      // Normal mode
+         i2c_master_write_byte (t, 0x81, true); // Contrast
+         i2c_master_write_byte (t, oled_contrast, true);        // Contrast
          i2c_master_write_byte (t, 0x15, true); // Col
          i2c_master_write_byte (t, 0x00, true); // 0
          i2c_master_write_byte (t, 0x7F, true); // 127
@@ -301,12 +314,12 @@ oled_task (void *p)
       }
       if (e)
          revk_error ("OLED", "Data failed %s", esp_err_to_name (e));
-      if (!running || e)
+      if (!oled_update || e)
       {
-         running = 1;
+         oled_update = 1;
          oledchanged = 1;
       } else
-         running = 2;
+         oled_update = 2;
       xSemaphoreGive (oled_mutex);
       if (i2c_mutex)
          xSemaphoreGive (i2c_mutex);
@@ -473,13 +486,16 @@ app_main ()
 #define b(n) revk_register(#n,0,sizeof(n),&n,NULL,SETTING_BOOLEAN);
 #define u32(n,d) revk_register(#n,0,sizeof(n),&n,#d,0);
 #define s8(n,d) revk_register(#n,0,sizeof(n),&n,#d,SETTING_SIGNED);
+#define u8(n,d) revk_register(#n,0,sizeof(n),&n,#d,0);
 #define s(n) revk_register(#n,0,0,&n,NULL,0);
    settings
 #undef u32
 #undef s8
+#undef u8
 #undef b
 #undef s
       oled_mutex = xSemaphoreCreateMutex ();    // Shared text access
+   oled_contrast = oledcontrast;        // Initial contrast
    if (co2sda >= 0 && co2scl >= 0)
    {
       co2port = 0;
