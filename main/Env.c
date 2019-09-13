@@ -64,8 +64,9 @@ static OneWireBus *owb = NULL;
 static owb_rmt_driver_info rmt_driver_info;
 static DS18B20_Info *ds18b20s[MAX_OWB] = { 0 };
 
-static uint8_t oled_update = 0;
-static uint8_t oled_contrast = 0;
+static volatile uint8_t oled_update = 0;
+static volatile uint8_t oled_contrast = 0;
+static volatile uint8_t oled_changed = 1;
 
 static float
 report (const char *tag, float last, float this, int places)
@@ -109,9 +110,11 @@ app_command (const char *tag, unsigned int len, const unsigned char *value)
       sendall ();
    if (!strcmp (tag, "contrast"))
    {
+      xSemaphoreTake (oled_mutex, portMAX_DELAY);
       oled_contrast = atoi ((char *) value);
       if (oled_update)
          oled_update = 1;
+      xSemaphoreGive (oled_mutex);
       return "";                // OK
    }
    return NULL;
@@ -121,7 +124,6 @@ app_command (const char *tag, unsigned int len, const unsigned char *value)
 #define	OLEDH	128
 #define	OLEDB	4
 static uint8_t oled[OLEDW * OLEDH * OLEDB / 8];
-static volatile char oledchanged = 1;
 
 static inline void
 oledbit (int x, int y, uint8_t v)
@@ -139,7 +141,7 @@ oledbit (int x, int y, uint8_t v)
    if (oled[o] == new)
       return;
    oled[o] = new;
-   oledchanged = 1;
+   oled_changed = 1;
 }
 
 static inline int
@@ -161,7 +163,7 @@ oledcopy (int x, int y, const uint8_t * src, int dx)
       if (memcmp (dst, src, pix * OLEDB / 8))
       {                         // Changed
          memcpy (dst, src, pix * OLEDB / 8);
-         oledchanged = 1;
+         oled_changed = 1;
       }
    }
    return dx * OLEDB / 8;       // Bytes (would be) copied
@@ -234,7 +236,7 @@ oled_task (void *p)
    {
       if (i2c_mutex)
          xSemaphoreTake (i2c_mutex, portMAX_DELAY);
-      oledchanged = 0;
+      oled_changed = 0;
       i2c_cmd_handle_t t = i2c_cmd_link_create ();
       i2c_master_start (t);
       i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
@@ -270,7 +272,7 @@ oled_task (void *p)
 
    while (1)
    {                            // Update
-      if (!oledchanged)
+      if (!oled_changed)
       {
          usleep (100000);
          continue;
@@ -278,7 +280,7 @@ oled_task (void *p)
       if (i2c_mutex)
          xSemaphoreTake (i2c_mutex, portMAX_DELAY);
       xSemaphoreTake (oled_mutex, portMAX_DELAY);
-      oledchanged = 0;
+      oled_changed = 0;
       i2c_cmd_handle_t t;
       e = 0;
       if (oled_update < 2)
@@ -287,8 +289,9 @@ oled_task (void *p)
          i2c_master_start (t);
          i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
          i2c_master_write_byte (t, 0x00, true); // Cmds
-         if (oled_update)
+         if (!oled_update)
             i2c_master_write_byte (t, 0xA4, true);      // Normal mode
+         oled_update = 2;
          i2c_master_write_byte (t, 0x81, true); // Contrast
          i2c_master_write_byte (t, oled_contrast, true);        // Contrast
          i2c_master_write_byte (t, 0x15, true); // Col
@@ -316,10 +319,9 @@ oled_task (void *p)
          revk_error ("OLED", "Data failed %s", esp_err_to_name (e));
       if (!oled_update || e)
       {
-         oled_update = 1;
-         oledchanged = 1;
-      } else
-         oled_update = 2;
+         oled_update = 1;       // Resend data
+         oled_changed = 1;
+      }
       xSemaphoreGive (oled_mutex);
       if (i2c_mutex)
          xSemaphoreGive (i2c_mutex);
