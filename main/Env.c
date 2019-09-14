@@ -656,17 +656,17 @@ app_main ()
       if (now != showtime)
       {
          showtime = now;
-         struct tm *t;
-         t = localtime (&showtime);
+         struct tm t;
+         localtime_r (&showtime,&t);
          static char lasth = -1;
-         if (t->tm_hour != lasth)
+         if (t.tm_hour != lasth)
          {
-            lasth = t->tm_hour;
+            lasth = t.tm_hour;
             sendall ();
          }
-         if (t->tm_year > 100)
+         if (t.tm_year > 100)
          {
-            strftime (s, sizeof (s), "%F\004%T %Z", t);
+            strftime (s, sizeof (s), "%F\004%T %Z", &t);
             text (1, 0, 0, s);
          }
       }
