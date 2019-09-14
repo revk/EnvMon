@@ -15,7 +15,7 @@ compclear=0.5;
 base=(nooled?8:2.6);
 top=4.6;
 side=2.5;
-sidet=0.05; // Gap in side clips
+sidet=0.1; // Gap in side clips
 
 $fn=48;
 
@@ -117,13 +117,10 @@ module comp(hole=false)
                 translate([30,1,-1.6])
                 mirror([0,0,1])
                 spox(3,hole);
-                if(nooled)
-                { // re-flash port, not needed externally
-                    translate([1,19.715+12.4,-1.6])
-                    mirror([0,0,1])
-                    rotate([0,0,-90])
-                    spox(4,hole);
-                }
+                translate([1,19.715+12.4,-1.6])
+                mirror([0,0,1])
+                rotate([0,0,-90])
+                spox(4,false); // Blocked off
                 // CO2
                 translate([7,2,-1.6-7])
                 cube([23,35,7]);
@@ -193,6 +190,13 @@ module cut(a=false)
         cube([compw+side*2+20,comph+side*2+20,base+compt/2+side/4+10]);
         translate([side/2-(a?sidet:-sidet),side/2-(a?sidet:-sidet),base+compt/2+side/4-side/2-(a?sidet:-sidet)])
         cube([compw+side+2*(a?sidet:-sidet),comph+side+2*(a?sidet:-sidet),side*2]);
+        translate([side-1+30,side-1+1-15,base+compt-1.6-1])
+        hull()
+        { // DS18B20
+            cube([9.9,30,1]);
+            translate([-2,0,10])
+            cube([9.9+4,30,1]);
+        }
     }
     translate([side-1+26.070,side-1+10.348,base+compt-10])
     hull()
@@ -210,7 +214,7 @@ module cut(a=false)
     }
     translate([side-1+30,side-1+1-15,base+compt-1.6-10-4.9])
     hull()
-    {
+    { // DS18B20
         cube([9.9,30,10]);
         translate([-2,0,0])
         cube([9.9+4,30,1]);
