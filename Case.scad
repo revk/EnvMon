@@ -151,7 +151,7 @@ module comp(hole=false)
         if(hole)
         hull()
         {
-            translate([7.5,2,-2-1])
+            translate([7.5,1.5,-2-1])
             cube([30,28,1]);
             translate([7.5-5,2-5,-2-1-20])
             cube([30+10,28+10,1]);

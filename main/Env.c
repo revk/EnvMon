@@ -69,7 +69,7 @@ static volatile uint8_t oled_update = 0;
 static volatile uint8_t oled_contrast = 0;
 static volatile uint8_t oled_changed = 1;
 
-static const char * co2_setting (uint16_t cmd, uint16_t val);
+static const char *co2_setting (uint16_t cmd, uint16_t val);
 
 static float
 report (const char *tag, float last, float this, int places)
@@ -125,11 +125,11 @@ app_command (const char *tag, unsigned int len, const unsigned char *value)
    if (!strcmp (tag, "co2nocal"))
       return co2_setting (0x5306, 0);
    if (!strcmp (tag, "co2cal"))
-      return co2_setting (0x5204, atoi ((char*)value));
+      return co2_setting (0x5204, atoi ((char *) value));
    if (!strcmp (tag, "co2tempoffset"))
-      return co2_setting (0x5403, atoi ((char*)value));
+      return co2_setting (0x5403, atoi ((char *) value));
    if (!strcmp (tag, "co2alt"))
-      return co2_setting (0x5102, atoi ((char*)value));
+      return co2_setting (0x5102, atoi ((char *) value));
    return NULL;
 }
 
@@ -299,9 +299,8 @@ oled_task (void *p)
          i2c_master_start (t);
          i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
          i2c_master_write_byte (t, 0x00, true); // Cmds
-         if (!oled_update)
+         if (oled_update)
             i2c_master_write_byte (t, 0xA4, true);      // Normal mode
-         oled_update = 2;
          i2c_master_write_byte (t, 0x81, true); // Contrast
          i2c_master_write_byte (t, oled_contrast, true);        // Contrast
          i2c_master_write_byte (t, 0x15, true); // Col
@@ -331,7 +330,8 @@ oled_task (void *p)
       {
          oled_update = 1;       // Resend data
          oled_changed = 1;
-      }
+      } else
+         oled_update = 2;       // All OK
       xSemaphoreGive (oled_mutex);
       xSemaphoreGive (oledi2c_mutex);
    }
@@ -389,7 +389,7 @@ co2_setting (uint16_t cmd, uint16_t val)
    xSemaphoreGive (co2i2c_mutex);
    if (e)
       return esp_err_to_name (e);
-return "";
+   return "";
 }
 
 void
