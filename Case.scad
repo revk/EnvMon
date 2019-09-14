@@ -241,9 +241,9 @@ module a()
 
 module b()
 {
-    translate([(compw+side*2)/2,(comph+side*2)/2,base+compt/2+side/4])
+    translate([(compw+side*2)/2,(comph+side*2)/2,(base+compt+top)/2])
     rotate([180,0,0])
-    translate([-(compw+side*2)/2,-(comph+side*2)/2,-base+compt/2+side/4])
+    translate([-(compw+side*2)/2,-(comph+side*2)/2,-(base+compt+top)/2])
     difference()
     {
         casecomp();
