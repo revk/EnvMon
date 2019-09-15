@@ -135,7 +135,7 @@ module comp(hole=false)
                 cube([8.150,3,4]);
                 translate([11.800-1,-side*2-2,compt-1])
                 cube([10.3,side*2,6]);
-                translate([19,-20,6.6])
+                translate([19,-20,compt-5.6])
                 cube([3,25,1]); // Air hole
                 for(y=[14,31])
                 translate([16,y,compt])
