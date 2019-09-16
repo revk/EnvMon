@@ -29,7 +29,7 @@ const char TAG[] = "CO2";
 	s8(oledsda,5)	\
 	s8(oledscl,18)	\
 	s8(oledaddress,0x3D)	\
-	u8(oledcontrast,100)	\
+	u8(oledcontrast,127)	\
 	b(oledflip)	\
 	b(f)	\
 	s(fanon)	\
