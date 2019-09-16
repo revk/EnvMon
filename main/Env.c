@@ -204,7 +204,13 @@ texth (uint8_t size)
 
 int
 text (uint8_t size, int x, int y, char *t)
-{
+{                               // Size negative for descenders
+   int z = 7;
+   if (size < 0)
+   {
+      size = -size;
+      z = 9;
+   }
    if (!size)
       size = 1;
    else if (size > sizeof (fonts) / sizeof (*fonts))
@@ -230,7 +236,7 @@ text (uint8_t size, int x, int y, char *t)
          base += size * 2 * OLEDB / 8;
       }                         // Special case for .
       c -= ' ';
-      for (int dy = 0; dy < h; dy++)
+      for (int dy = 0; dy < size * z; dy++)
       {
          oledcopy (x, y + h - 1 - dy, base, ww);
          base += w * OLEDB / 8;
@@ -657,7 +663,7 @@ app_main ()
       {
          showtime = now;
          struct tm t;
-         localtime_r (&showtime,&t);
+         localtime_r (&showtime, &t);
          static char lasth = -1;
          if (t.tm_hour != lasth)
          {
@@ -686,7 +692,7 @@ app_main ()
             sprintf (s, "%4d", (int) showco2);
          x = text (4, 0, y, s);
          text (1, x, y + 9, "CO2");
-         x = text (1, x, y, "ppm");
+         x = text (-1, x, y, "ppm");
       }
       y -= space;               // Space
       y -= 35;

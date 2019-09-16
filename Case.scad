@@ -4,16 +4,18 @@
 // Main component cube, may just be the PCB itself
 // Bits stick out, usually on top or bottom
 
+nooled=0;   // Set for design where OLED is not in use.
+
 compw=45;
 comph=37;
-compt=1.6+9+1.6;
+compt=1.6+(nooled?0:9+1.6);
 compclear=0.5;
 
 // Box thickness reference to component cube
-base=2.6;
+base=(nooled?8:2.6);
 top=4.6;
 side=2.5;
-sidet=0.05; // Gap in side clips
+sidet=0.1; // Gap in side clips
 
 $fn=48;
 
@@ -88,7 +90,8 @@ module comp(hole=false)
             for(y=[3.5,35.5])
             translate([x,y,0])
             {
-                translate([0,0,1.6])
+                if(!nooled)
+                    translate([0,0,1.6])
                 cylinder(d=6,h=9);
                 translate([0,0,-1])
                 cylinder(d=5,h=compt+2);
@@ -114,13 +117,16 @@ module comp(hole=false)
                 translate([30,1,-1.6])
                 mirror([0,0,1])
                 spox(3,hole);
-                if(0)
-                { // re-flash port, not needed externally
-                    translate([1,19.715+12.4,-1.6])
-                    mirror([0,0,1])
-                    rotate([0,0,-90])
-                    spox(4,hole);
-                }
+                translate([1,19.715+12.4,-1.6])
+                mirror([0,0,1])
+                rotate([0,0,-90])
+                spox(4,false); // Blocked off
+                // CO2
+                translate([7,2,-1.6-7])
+                cube([23,35,7]);
+                // Reg
+                translate([30,21,-1.6-3])
+                cube([10.160,12.700,3]);
             }
             // Connectors
             if(hole)
@@ -129,7 +135,7 @@ module comp(hole=false)
                 cube([8.150,3,4]);
                 translate([11.800-1,-side*2-2,compt-1])
                 cube([10.3,side*2,6]);
-                translate([19,-20,6.6])
+                translate([19,-20,compt-5.6])
                 cube([3,25,1]); // Air hole
                 for(y=[14,31])
                 translate([16,y,compt])
@@ -142,6 +148,7 @@ module comp(hole=false)
             }
         }
     }
+    if(!nooled)
     translate([side,side,base])
     { // OLED
         translate([5,0,-2])
@@ -180,9 +187,16 @@ module cut(a=false)
     difference()
     {
         translate([-10,-10,-10])
-        cube([compw+side*2+20,comph+side*2+20,(base+compt+top)/2+10]);
-        translate([side/2-(a?sidet:-sidet),side/2-(a?sidet:-sidet),(base+compt+top)/2-side/2-(a?sidet:-sidet)])
+        cube([compw+side*2+20,comph+side*2+20,base+compt/2+side/4+10]);
+        translate([side/2-(a?sidet:-sidet),side/2-(a?sidet:-sidet),base+compt/2+side/4-side/2-(a?sidet:-sidet)])
         cube([compw+side+2*(a?sidet:-sidet),comph+side+2*(a?sidet:-sidet),side*2]);
+        translate([side-1+30,side-1+1-15,base+compt-1.6-1])
+        hull()
+        { // DS18B20
+            cube([9.9,30,1]);
+            translate([-2,0,10])
+            cube([9.9+4,30,1]);
+        }
     }
     translate([side-1+26.070,side-1+10.348,base+compt-10])
     hull()
@@ -200,7 +214,7 @@ module cut(a=false)
     }
     translate([side-1+30,side-1+1-15,base+compt-1.6-10-4.9])
     hull()
-    {
+    { // DS18B20
         cube([9.9,30,10]);
         translate([-2,0,0])
         cube([9.9+4,30,1]);
