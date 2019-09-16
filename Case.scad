@@ -4,7 +4,7 @@
 // Main component cube, may just be the PCB itself
 // Bits stick out, usually on top or bottom
 
-nooled=0;   // Set for design where OLED is not in use.
+nooled=1;   // Set for design where OLED is not in use.
 
 compw=45;
 comph=37;
