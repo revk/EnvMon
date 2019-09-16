@@ -203,7 +203,7 @@ texth (uint8_t size)
 }
 
 int
-text (uint8_t size, int x, int y, char *t)
+text (int8_t size, int x, int y, char *t)
 {                               // Size negative for descenders
    int z = 7;
    if (size < 0)
