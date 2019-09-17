@@ -10,3 +10,6 @@
 [submodule "SQLlib"]
 	path = SQLlib
 	url = https://github.com/revk/SQLlib
+[submodule "AXL"]
+	path = AXL
+	url = https://github.com/revk/AXL
