@@ -321,7 +321,7 @@ oled_task (void *p)
          if (oled_update)
             i2c_master_write_byte (t, 0xA4, true);      // Normal mode
          i2c_master_write_byte (t, 0x81, true); // Contrast
-         i2c_master_write_byte (t, old_dark ? 0 : oled_contrast, true); // Contrast
+         i2c_master_write_byte (t, oled_dark ? 0 : oled_contrast, true); // Contrast
          i2c_master_write_byte (t, 0x15, true); // Col
          i2c_master_write_byte (t, 0x00, true); // 0
          i2c_master_write_byte (t, 0x7F, true); // 127
