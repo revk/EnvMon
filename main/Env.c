@@ -1,4 +1,5 @@
 // CO2 + other sensors all
+// Copyright (c) 2019 Adrian Kennard, Andrews & Arnold Limited, see LICENSE file (GPL)
 const char TAG[] = "CO2";
 
 #include "revk.h"
