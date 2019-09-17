@@ -4,7 +4,7 @@
 // Main component cube, may just be the PCB itself
 // Bits stick out, usually on top or bottom
 
-nooled=1;   // Set for design where OLED is not in use.
+nooled=0;   // Set for design where OLED is not in use.
 
 compw=45;
 comph=37;
@@ -112,8 +112,12 @@ module comp(hole=false)
                 translate([34.400,4.480,0])
                 smd1206();
                 if(hole)
-                    translate([32.548,36.510,,0])
+                {
+                    translate([32.548,36.510,0])
                     cube([5.232,1.440,top*2]);
+                    translate([32.548,36.510-2,-1.6-2])
+                    cube([5.232,1.440+2,2]);
+                }
                 translate([30,1,-1.6])
                 mirror([0,0,1])
                 spox(3,hole);
