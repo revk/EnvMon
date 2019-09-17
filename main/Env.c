@@ -68,6 +68,7 @@ static DS18B20_Info *ds18b20s[MAX_OWB] = { 0 };
 static volatile uint8_t oled_update = 0;
 static volatile uint8_t oled_contrast = 0;
 static volatile uint8_t oled_changed = 1;
+static volatile uint8_t oled_dark = 0;
 
 static const char *co2_setting (uint16_t cmd, uint16_t val);
 
@@ -109,8 +110,10 @@ sendall (void)
 const char *
 app_command (const char *tag, unsigned int len, const unsigned char *value)
 {
-   if (!strcmp (tag, "connect"))
-      sendall ();
+   if (!strcmp (tag, "night"))
+      oled_dark = 1;
+   if (!strcmp (tag, "day"))
+      oled_dark = 0;
    if (!strcmp (tag, "contrast"))
    {
       xSemaphoreTake (oled_mutex, portMAX_DELAY);
@@ -173,12 +176,21 @@ oledcopy (int x, int y, const uint8_t * src, int dx)
       if (x + pix > OLEDW)
          pix = OLEDW - x;       // Truncate right
       uint8_t *dst = oled + y * OLEDW * OLEDB / 8 + x * OLEDB / 8;
-      if (memcmp (dst, src, pix * OLEDB / 8))
-      {                         // Changed
-         memcpy (dst, src, pix * OLEDB / 8);
+      if (src)
+      {                         // Copy
+         if (memcmp (dst, src, pix * OLEDB / 8))
+         {                      // Changed
+            memcpy (dst, src, pix * OLEDB / 8);
+            oled_changed = 1;
+         }
+      } else
+      {                         // Clear
+         memset (dst, 0, pix * OLEDB / 8);
          oled_changed = 1;
       }
    }
+   if (!src)
+      return 0;
    return dx * OLEDB / 8;       // Bytes (would be) copied
 }
 
@@ -202,7 +214,7 @@ texth (uint8_t size)
    return size * 9;
 }
 
-int
+static int
 text (int8_t size, int x, int y, char *t)
 {                               // Size negative for descenders
    int z = 7;
@@ -246,6 +258,14 @@ text (int8_t size, int x, int y, char *t)
    return x;
 }
 
+static int
+icon (int x, int y, const void *p, int w, int h)
+{                               // Plot an icon
+   for (int dy = 0; dy < h; dy++)
+      p += oledcopy (x, y + h - dy - 1, p, w);
+   return x + w;
+}
+
 void
 oled_task (void *p)
 {
@@ -279,13 +299,6 @@ oled_task (void *p)
    }
 
    memset (oled, 0x00, sizeof (oled));  // Blank
-   {
-      int w = sizeof (logo[0]) * 8 / OLEDB;
-      int h = sizeof (logo) / sizeof (*logo);
-      for (int dy = 0; dy < h; dy++)
-         oledcopy (OLEDW - w, 10 + h - dy, logo[dy], w);
-      text (1, 0, 0, CONFIG_ENV_TAG);
-   }
 
    while (1)
    {                            // Update
@@ -308,7 +321,7 @@ oled_task (void *p)
          if (oled_update)
             i2c_master_write_byte (t, 0xA4, true);      // Normal mode
          i2c_master_write_byte (t, 0x81, true); // Contrast
-         i2c_master_write_byte (t, oled_contrast, true);        // Contrast
+         i2c_master_write_byte (t, old_dark ? 0 : oled_contrast, true); // Contrast
          i2c_master_write_byte (t, 0x15, true); // Col
          i2c_master_write_byte (t, 0x00, true); // 0
          i2c_master_write_byte (t, 0x7F, true); // 127
@@ -653,12 +666,59 @@ app_main ()
          revk_task ("DS18B20", ds18b20_task, NULL);
    }
    // Main task...
+   time_t showtime = 0;
+   char showlogo = 1;
+   float showco2 = -1000;
+   float showtemp = -1000;
+   float showrh = -1000;
    while (1)
    {
+      // Fan control
+      const char *fan = NULL;
+      if (thisco2 > fanco2 && lastfan != 1)
+      {
+         fan = fanon;
+         lastfan = 1;
+      } else if (thisco2 < fanco2 && lastfan != 0)
+      {
+         fan = fanoff;
+         lastfan = 0;
+      }
+      if (fan && *fan)
+      {
+         char *topic = strdup (fan);
+         char *data = strchr (topic, ' ');
+         if (data)
+            *data++ = 0;
+         revk_raw (NULL, topic, data ? strlen (data) : 0, data, 0);
+         free (topic);
+      }
+      // Next second
+      usleep (1000000LL - (esp_timer_get_time () % 1000000LL));
+      // Display
       xSemaphoreTake (oled_mutex, portMAX_DELAY);
       char s[30];
-      static time_t showtime = 0;
       time_t now = time (0);
+      if (oled_dark)
+      {                         // Night mode, just time
+         memset (oled, 0, sizeof (oled));
+         showlogo = 1;
+         showtime = 0;
+         showco2 = -1000;
+         showtemp = -1000;
+         showrh = -1000;
+         struct tm t;
+         localtime_r (&now, &t);
+         strftime (s, sizeof (s), "%H:%M", &t);
+         text (1, 0, 0, s);
+         xSemaphoreGive (oled_mutex);
+         continue;
+      }
+      if (showlogo)
+      {
+         showlogo = 0;
+         icon (OLEDW - sizeof (logo[0]) * 8 / OLEDB, 10, logo, sizeof (logo[0]) * 8 / OLEDB, sizeof (logo) / sizeof (*logo));
+      }
       if (now != showtime)
       {
          showtime = now;
@@ -680,7 +740,6 @@ app_main ()
         y = OLEDH - 1,
          space = (OLEDH - 28 - 35 - 21 - 9) / 3;
       y -= 28;
-      static float showco2 = -1000;
       if (thisco2 != showco2)
       {
          showco2 = thisco2;
@@ -696,7 +755,6 @@ app_main ()
       }
       y -= space;               // Space
       y -= 35;
-      static float showtemp = -1000;
       if (thistemp != showtemp)
       {
          showtemp = thistemp;
@@ -724,7 +782,6 @@ app_main ()
       }
       y -= space;               // Space
       y -= 21;
-      static float showrh = -1000;
       if (thisrh != showrh)
       {
          showrh = thisrh;
@@ -743,27 +800,6 @@ app_main ()
          text (3, 58, y, thisco2 > fanco2 ? "*" : " ");
       y -= space;
       xSemaphoreGive (oled_mutex);
-      // Fan control
-      const char *fan = NULL;
-      if (thisco2 > fanco2 && lastfan != 1)
-      {
-         fan = fanon;
-         lastfan = 1;
-      } else if (thisco2 < fanco2 && lastfan != 0)
-      {
-         fan = fanoff;
-         lastfan = 0;
-      }
-      if (fan && *fan)
-      {
-         char *topic = strdup (fan);
-         char *data = strchr (topic, ' ');
-         if (data)
-            *data++ = 0;
-         revk_raw (NULL, topic, data ? strlen (data) : 0, data, 0);
-         free (topic);
-      }
-      // Next second
-      usleep (1000000LL - (esp_timer_get_time () % 1000000LL));
+
    }
 }
