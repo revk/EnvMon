@@ -5,25 +5,43 @@
 #include <string.h>
 #include <popt.h>
 #include <err.h>
+#include <malloc.h>
 #include <sqllib.h>
 #include <mosquitto.h>
-
-int debug = 0;
 
 int
 main (int argc, const char *argv[])
 {
+   const char *sqlhostname = "env";
+   const char *sqldatabase = "env";
+   const char *sqlusername = NULL;
+   const char *sqlpassword = NULL;
+   const char *sqlconffile = NULL;
+   const char *sqltable = "env";
+   const char *mqtthostname = NULL;
+   const char *mqttusername = NULL;
+   const char *mqttpassword = NULL;
+   const char *mqttappname = "Env";
+   const char *mqttid = NULL;
    {                            // POPT
       poptContext optCon;       // context for parsing command-line options
       const struct poptOption optionsTable[] = {
-//      {"string", 's', POPT_ARG_STRING, &string, 0, "String", "string"},
-//      {"string-default", 'S', POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &string, 0, "String", "string"},
-         {"debug", 'v', POPT_ARG_NONE, &debug, 0, "Debug"},
+         {"sql-conffile", 'c', POPT_ARG_STRING, &sqlconffile, 0, "SQL conf file", "filename"},
+         {"sql-hostname", 'd', POPT_ARG_STRING, &sqlhostname, 0, "SQL hostname", "hostname"},
+         {"sql-database", 'd', POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &sqldatabase, 0, "SQL database", "db"},
+         {"sql-username", 'U', POPT_ARG_STRING, &sqlusername, 0, "SQL username", "name"},
+         {"sql-password", 'P', POPT_ARG_STRING, &sqlpassword, 0, "SQL password", "pass"},
+         {"sql-table", 't', POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &sqltable, 0, "SQL table", "table"},
+         {"sql-debug", 'v', POPT_ARG_NONE, &sqldebug, 0, "Debug"},
+         {"mqtt-hostname", 'h', POPT_ARG_STRING, &mqtthostname, 0, "MQTT hostname", "hostname"},
+         {"mqtt-username", 'u', POPT_ARG_STRING, &mqttusername, 0, "MQTT username", "username"},
+         {"mqtt-password", 'p', POPT_ARG_STRING, &mqttpassword, 0, "MQTT password", "password"},
+         {"mqtt-appname", 'p', POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &mqttappname, 0, "MQTT appname", "appname"},
+         {"mqtt-id", 0, POPT_ARG_STRING, &mqttid, 0, "MQTT id", "id"},
          POPT_AUTOHELP {}
       };
 
       optCon = poptGetContext (NULL, argc, argv, optionsTable, 0);
-      //poptSetOtherOptionHelp (optCon, "");
 
       int c;
       if ((c = poptGetNextOpt (optCon)) < -1)
@@ -36,7 +54,44 @@ main (int argc, const char *argv[])
       }
       poptFreeContext (optCon);
    }
-
-
+   int e = mosquitto_lib_init ();
+   if (e)
+      errx (1, "MQTT init failed %s", mosquitto_strerror (e));
+   struct mosquitto *mqtt = mosquitto_new (mqttid, 1, NULL);
+   e = mosquitto_username_pw_set (mqtt, mqttusername, mqttpassword);
+   if (e)
+      errx (1, "MQTT auth failed %s", mosquitto_strerror (e));
+   errx (1, "MQTT auth failed %s", mosquitto_strerror (e));
+   void connect (struct mosquitto *mqtt, void *obj, int rc)
+   {
+      obj = obj;
+      rc = rc;
+      char *sub = NULL;
+      asprintf (&sub, "info/%s/#", mqttappname);
+      int e = mosquitto_subscribe (mqtt, NULL, sub, 0);
+      if (e)
+         errx (1, "MQTT subscribe failed %s", mosquitto_strerror (e));
+      free (sub);
+   }
+   void disconnect (struct mosquitto *mqtt, void *obj, int rc)
+   {
+      obj = obj;
+      rc = rc;
+   }
+   void message (struct mosquitto *mqtt, void *obj, const struct mosquitto_message *msg)
+   {
+      obj = obj;
+      char *topic = msg->topic;
+   }
+   mosquitto_connect_callback_set (mqtt, connect);
+   mosquitto_disconnect_callback_set (mqtt, disconnect);
+   mosquitto_message_callback_set (mqtt, message);
+   e = mosquitto_connect (mqtt, mqtthostname, 1883, 60);
+   if (e)
+      errx (1, "MQTT connect failed (%s) %s", mqtthostname, mosquitto_strerror (e));
+   SQL sql;
+   sql_real_connect (&sql, sqlhostname, sqlusername, sqlpassword, sqldatabase, 0, NULL, 0, 1, sqlconffile);
+   while (1);
+   sql_close (&sql);
    return 0;
 }
