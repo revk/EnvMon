@@ -304,8 +304,6 @@ oled_task (void *p)
       return;
    }
 
-   memset (oled, 0x00, sizeof (oled));  // Blank
-
    while (1)
    {                            // Update
       if (!oled_changed)
@@ -577,6 +575,7 @@ app_main ()
 #undef s
       oled_mutex = xSemaphoreCreateMutex ();    // Shared text access
    oled_contrast = oledcontrast;        // Initial contrast
+   memset (oled, 0x00, sizeof (oled));  // Blank
    if (co2sda >= 0 && co2scl >= 0)
    {
       co2port = 0;
