@@ -159,8 +159,7 @@ main (int argc, const char *argv[])
       }
       if (debug)
          warnx ("Tag [%s] Type [%s] Val [%s]", tag, type, val);
-      if (*p)
-         free (*p);
+      // Log previous values
       time_t now = (time (0) / interval) * interval;
       if (l->when && l->when != now + interval)
       {                         // Log to SQL
@@ -174,6 +173,9 @@ main (int argc, const char *argv[])
          if (l->when < now)
             insert (now);
       }
+      // Store new value
+      if (*p)
+         free (*p);
       *p = val;
       l->when = now + interval;
    }
