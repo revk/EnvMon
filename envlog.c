@@ -42,7 +42,7 @@ main (int argc, const char *argv[])
       poptContext optCon;       // context for parsing command-line options
       const struct poptOption optionsTable[] = {
          {"sql-conffile", 'c', POPT_ARG_STRING, &sqlconffile, 0, "SQL conf file", "filename"},
-         {"sql-hostname", 'd', POPT_ARG_STRING, &sqlhostname, 0, "SQL hostname", "hostname"},
+         {"sql-hostname", 'H', POPT_ARG_STRING, &sqlhostname, 0, "SQL hostname", "hostname"},
          {"sql-database", 'd', POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &sqldatabase, 0, "SQL database", "db"},
          {"sql-username", 'U', POPT_ARG_STRING, &sqlusername, 0, "SQL username", "name"},
          {"sql-password", 'P', POPT_ARG_STRING, &sqlpassword, 0, "SQL password", "pass"},
