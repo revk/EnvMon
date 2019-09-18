@@ -111,6 +111,11 @@ sendall (void)
 const char *
 app_command (const char *tag, unsigned int len, const unsigned char *value)
 {
+   if (!strcmp (tag, "send"))
+   {
+      sendall ();
+      return "";
+   }
    if (!strcmp (tag, "night"))
    {
       oled_dark = 1;
