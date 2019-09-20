@@ -22,10 +22,17 @@ main (int argc, const char *argv[])
    const char *sqlconffile = NULL;
    const char *sqltable = "env";
    const char *tag = NULL;
-   const char *date = NULL;
-   int svgwidth = 864;
-   int svgheight = 500;
+   char *date = NULL;
+   double xsize = 36;
+   double ysize = 36;
+   double tempstep = 1;
+   double co2step = 50;
+   double rhstep = 3;
+   double co2base = 400;
+   double tempbase = 0;
+   double rhbase = 0;
    int debug = 0;
+   int days = 1;
    {                            // POPT
       poptContext optCon;       // context for parsing command-line options
       const struct poptOption optionsTable[] = {
@@ -36,10 +43,17 @@ main (int argc, const char *argv[])
          {"sql-password", 'P', POPT_ARG_STRING, &sqlpassword, 0, "SQL password", "pass"},
          {"sql-table", 't', POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &sqltable, 0, "SQL table", "table"},
          {"sql-debug", 'v', POPT_ARG_NONE, &sqldebug, 0, "SQL Debug"},
-         {"svg-width", 0, POPT_ARG_INT | POPT_ARGFLAG_SHOW_DEFAULT, &svgwidth, 0, "SVG width"},
-         {"svg-height", 0, POPT_ARG_INT | POPT_ARGFLAG_SHOW_DEFAULT, &svgheight, 0, "SVG height"},
+         {"x-size", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &xsize, 0, "X size per hour", "pixels"},
+         {"y-size", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &ysize, 0, "Y size per step", "pixels"},
+         {"temp-step", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &tempstep, 0, "Temp per Y step", "Celsius"},
+         {"co2-step", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &co2step, 0, "CO₂ per Y step", "ppm"},
+         {"rh-step", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &rhstep, 0, "RH per Y step", "%"},
+         {"temp-base", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &tempbase, 0, "Temp base", "Celsius"},
+         {"co2-base", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &co2base, 0, "CO₂ base", "ppm"},
+         {"rh-base", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &rhbase, 0, "RH base", "%"},
          {"tag", 'i', POPT_ARG_STRING, &tag, 0, "Device ID", "tag"},
-         {"date", 'D', POPT_ARG_STRING, &tag, 0, "Device ID", "tag"},
+         {"date", 'D', POPT_ARG_STRING, &date, 0, "Date", "YYYY-MM-DD"},
+         {"days", 'N', POPT_ARG_INT | POPT_ARGFLAG_SHOW_DEFAULT, &days, 0, "Days", "N"},
          {"debug", 'V', POPT_ARG_NONE, &debug, 0, "Debug"},
          POPT_AUTOHELP {}
       };
@@ -60,110 +74,123 @@ main (int argc, const char *argv[])
    }
    SQL sql;
    sql_real_connect (&sql, sqlhostname, sqlusername, sqlpassword, sqldatabase, 0, NULL, 0, 1, sqlconffile);
-   SQL_RES *res;
-   if (date)
-      res =
-         sql_safe_query_store_free (&sql,
-                                    sql_printf ("SELECT * FROM `%#S` WHERE `tag`=%#s AND `when` like '%#S%' ORDER BY `when`",
-                                                sqltable, tag, date));
-   else
-      res =
-         sql_safe_query_store_free (&sql,
-                                    sql_printf
-                                    ("SELECT * FROM `%#S` WHERE `tag`=%#s AND `when`>=date_sub(now(),interval 1 day) ORDER BY `when`",
-                                     sqltable, tag));
-   char *pathtemp = NULL;
-   size_t sizetemp = 0;
-   char *pathco2 = NULL;
-   size_t sizeco2 = 0;
-   char *pathrh = NULL;
-   size_t sizerh = 0;
-   FILE *ftemp = open_memstream (&pathtemp, &sizetemp);
-   FILE *fco2 = open_memstream (&pathco2, &sizeco2);
-   FILE *frh = open_memstream (&pathrh, &sizerh);
-   char rhm = 'M',
-      co2m = 'M',
-      tempm = 'M';
-   time_t start = 0;
-   double tempmin = 1000,
-      tempmax = -1000;
-   double rhmin = -1000,
-      rhmax = -1000;
-   double co2min = -1000,
-      co2max = -1000;
-   while (sql_fetch_row (res))
+   char *edate = NULL;
    {
-      const char *when = sql_colz (res, "when");
-      const char *co2 = sql_colz (res, "co2");
-      const char *rh = sql_colz (res, "rh");
-      const char *temp = sql_colz (res, "temp");
-      if (!start)
-         start = xml_time (when);
-      int x = (xml_time (when) - start);
-      if (co2)
-      {
-         double v = strtod (co2,NULL);
-         fprintf (fco2, "%c%d,%f", co2m, x, v);
-         co2m = 'L';
-         if (co2min <=-1000 || co2min > v)
-            co2min = v;
-         if (co2max <=-1000 || co2max < v)
-            co2max = v;
-      }
-      if (rh)
-      {
-         double v = strtod (rh,NULL)*100;
-         fprintf (frh, "%c%d,%f", rhm, x, v);
-         rhm = 'L';
-         if (rhmin <=-1000 || rhmin > v)
-            rhmin = v;
-         if (rhmax <=-1000 || rhmax < v)
-            rhmax = v;
-      }
-      if (temp)
-      {
-         double v = strtod (temp, NULL)*100;
-         fprintf (ftemp, "%c%d,%f", tempm, x, v);
-         tempm = 'L';
-         if (tempmin <= -1000 || tempmin > v)
-            tempmin = v;
-         if (tempmax <= -1000 || tempmax < v)
-            tempmax = v;
-      }
+      struct tm t;
+      time_t now = time (0);
+      if (date)
+         now = xml_time (date);
+      localtime_r (&now, &t);
+      t.tm_mday -= days - 1;
+      mktime (&t);
+      asprintf (&date, "%04d-%02d-%02d", t.tm_year + 1900, t.tm_mon + 1, t.tm_mday);
+      t.tm_mday += days;
+      mktime (&t);
+      asprintf (&edate, "%04d-%02d-%02d", t.tm_year + 1900, t.tm_mon + 1, t.tm_mday);
    }
-   fclose (ftemp);
-   fclose (fco2);
-   fclose (frh);
-   sql_free_result (res);
+   SQL_RES *res = sql_safe_query_store_free (&sql,
+                                             sql_printf
+                                             ("SELECT * FROM `%#S` WHERE `tag`=%#s AND `when`>=%#s AND `when`<%#s ORDER BY `when`",
+                                              sqltable, tag, date, edate));
+   enum
+   {
+      CO2,
+      TEMP,
+      RH,
+      MAX,
+   };
+   struct data_s
+   {
+      const char *arg;
+      const char *colour;
+      xml_t g;
+      char *path;
+      size_t size;
+      FILE *f;
+      double min;
+      double max;
+      double scale;
+      char m;
+   } data[MAX] = {
+    {arg: "co2", colour: "green", scale:ysize / co2step},
+    {arg: "temp", colour: "red", scale:ysize / tempstep},
+    {arg: "rh", colour: "blue", scale:ysize / rhstep},
+   };
+   int d;
+   int day = 0;
    xml_t svg = xml_tree_new ("svg");
    xml_element_set_namespace (svg, xml_namespace (svg, NULL, "http://www.w3.org/2000/svg"));
-   xml_addf (svg, "@width", "%d", svgwidth);
-   xml_addf (svg, "@height", "%d", svgheight);
-   if (*pathtemp)
+   for (d = 0; d < MAX; d++)
    {
-      xml_t p = xml_element_add (svg, "path");
-      xml_add (p, "@stroke", "red");
-      xml_add (p, "@fill", "none");
-      xml_addf (p, "@transform", "scale(%f,%f)translate(0,%f)", (double) svgwidth / 86400, (double) svgheight / (tempmax - tempmin),-tempmin);
-      xml_add (p, "@d", pathtemp);
+      data[d].g = xml_element_add (svg, "g");
+      xml_add (data[d].g, "@stroke", data[d].colour);
+      xml_add (data[d].g, "@fill", "none");
    }
-   if (*pathco2)
+   void sod (void)
    {
-      xml_t p = xml_element_add (svg, "path");
-      xml_addf (p, "@transform", "scale(%f,%f)translate(0,%f)", (double) svgwidth / 86400, (double) svgheight / (co2max - co2min),-co2min);
-      xml_add (p, "@stroke", "green");
-      xml_add (p, "@fill", "none");
-      xml_add (p, "@d", pathco2);
+      for (d = 0; d < MAX; d++)
+      {
+         data[d].f = open_memstream (&data[d].path, &data[d].size);
+         data[d].min = -1000;
+         data[d].max = -1000;
+         data[d].m = 'M';
+      }
    }
-   if (*pathrh)
+   void eod (void)
    {
-      xml_t p = xml_element_add (svg, "path");
-      xml_addf (p, "@transform", "scale(%f,%f)translate(0,%f)", (double) svgwidth / 86400, (double) svgheight / (rhmax - rhmin),-rhmin);
-      xml_add (p, "@stroke", "blue");
-      xml_add (p, "@fill", "none");
-      xml_add (p, "@d", pathrh);
+      day++;
+      for (d = 0; d < MAX; d++)
+      {
+         fclose (data[d].f);
+         xml_t p = xml_element_add (data[d].g, "path");
+         xml_addf (p, "@opacity", "%.1f", (double) day / days);
+         xml_add (p, "@d", data[d].path);
+         free (data[d].path);
+      }
    }
+   sod ();
+   time_t start = xml_time (date);
+   while (sql_fetch_row (res))
+   {
+      const char *when = sql_col (res, "when");
+      if (strncmp (date, when, 10))
+      {                         // New day
+         memcpy (date, when, 10);
+         start = xml_time (date);
+         fprintf (stderr, "%s\n", date);
+         eod ();
+         sod ();
+      }
+      for (d = 0; d < MAX; d++)
+      {
+         const char *val = sql_col (res, data[d].arg);
+         if (!val)
+            continue;
+         double v = strtod (val, NULL);
+         if (data[d].min <= -1000 || data[d].min > v)
+            data[d].min = v;
+         if (data[d].max <= -1000 || data[d].max < v)
+            data[d].max = v;
+         int x = (xml_time (when) - start) * xsize / 3600;
+         int y = v * data[d].scale;
+         fprintf (data[d].f, "%c%d,%d", data[d].m, x, y);
+         data[d].m = 'L';
+      }
+   }
+   sql_free_result (res);
+   sql_close (&sql);
+   eod ();
+   // Normalise min
 
+   // Work out size
+   xml_addf (svg, "@width", "%.0f", xsize * 24);
+   xml_addf (svg, "@height", "%.0f", ysize * 30);       // TODO
+   // Position and invert
+   for (d = 0; d < MAX; d++)
+   {
+      xml_addf (data[d].g, "@transform", "translate(0,%.1f)scale(1,-1)", data[d].scale * (data[d].min + data[d].max));
+   }
+   // Write out
    xml_write (stdout, svg);
    xml_tree_delete (svg);
    return 0;
