@@ -559,7 +559,7 @@ app_main ()
          x = oled_text (1, x, y, "H");
       }
       if (fanco2)
-         oled_text (3, 58, y, thisco2 > fanco2 ? "*" : " ");
+         oled_icon (CONFIG_OLED_WIDTH - LOGOW * 2, 10, thisco2 > fanco2 ? logo : NULL, LOGOW, LOGOH);
       y -= space;
       oled_unlock ();
    }
