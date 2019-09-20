@@ -148,6 +148,7 @@ main (int argc, const char *argv[])
          free (data[d].path);
       }
    }
+   int maxx=0;
    sod ();
    time_t start = xml_time (date);
    while (sql_fetch_row (res))
@@ -172,6 +173,7 @@ main (int argc, const char *argv[])
          if (data[d].max <= -1000 || data[d].max < v)
             data[d].max = v;
          int x = (xml_time (when) - start) * xsize / 3600;
+	 if(x>maxx)maxx=x;
          int y = v * data[d].scale;
          fprintf (data[d].f, "%c%d,%d", data[d].m, x, y);
          data[d].m = 'L';
@@ -180,15 +182,17 @@ main (int argc, const char *argv[])
    sql_free_result (res);
    sql_close (&sql);
    eod ();
-   // Normalise min
-
-   // Work out size
-   xml_addf (svg, "@width", "%.0f", xsize * 24);
-   xml_addf (svg, "@height", "%.0f", ysize * 30);       // TODO
+   // Normalise min and work out y size
+   for (d = 0; d < MAX; d++)
+   {
+   }
+   xml_addf (svg, "@width", "%d",maxx);
+   xml_addf (svg, "@height", "%d",(int)ysize*30); // TODO
    // Position and invert
    for (d = 0; d < MAX; d++)
    {
       xml_addf (data[d].g, "@transform", "translate(0,%.1f)scale(1,-1)", data[d].scale * (data[d].min + data[d].max));
+      // Axis
    }
    // Write out
    xml_write (stdout, svg);
