@@ -64,11 +64,7 @@ static int lastfan = -1;
 static float thisco2 = -10000;
 static float thistemp = -10000;
 static float thisrh = -10000;
-static SemaphoreHandle_t co2i2c_mutex = NULL;
-static SemaphoreHandle_t oledi2c_mutex = NULL;
-static SemaphoreHandle_t oled_mutex = NULL;
-static int8_t co2port = -1,
-   oledport = -1;
+static int8_t co2port = -1;
 static int8_t num_owb = 0;
 static OneWireBus *owb = NULL;
 static owb_rmt_driver_info rmt_driver_info;
@@ -136,11 +132,7 @@ app_command (const char *tag, unsigned int len, const unsigned char *value)
    }
    if (!strcmp (tag, "contrast"))
    {
-      xSemaphoreTake (oled_mutex, portMAX_DELAY);
-      oled_contrast = atoi ((char *) value);
-      if (oled_update)
-         oled_update = 1;
-      xSemaphoreGive (oled_mutex);
+      oled_set_contrast (atoi ((char *) value));
       return "";                // OK
    }
    if (!strcmp (tag, "co2autocal"))
@@ -199,13 +191,11 @@ co2_add (i2c_cmd_handle_t i, uint16_t v)
 static const char *
 co2_setting (uint16_t cmd, uint16_t val)
 {
-   xSemaphoreTake (co2i2c_mutex, portMAX_DELAY);
    i2c_cmd_handle_t i = co2_cmd (cmd);
    co2_add (i, val);
    i2c_master_stop (i);
    esp_err_t e = i2c_master_cmd_begin (co2port, i, 10 / portTICK_PERIOD_MS);
    i2c_cmd_link_delete (i);
-   xSemaphoreGive (co2i2c_mutex);
    if (e)
       return esp_err_to_name (e);
    return "";
@@ -219,13 +209,11 @@ co2_task (void *p)
    esp_err_t e;
    while (try--)
    {
-      xSemaphoreTake (co2i2c_mutex, portMAX_DELAY);
       i2c_cmd_handle_t i = co2_cmd (0x0010);    // Start measurement
       co2_add (i, 0);           // 0=unknown
       i2c_master_stop (i);
       e = i2c_master_cmd_begin (co2port, i, 10 / portTICK_PERIOD_MS);
       i2c_cmd_link_delete (i);
-      xSemaphoreGive (co2i2c_mutex);
       if (!e)
          break;
       sleep (1);
@@ -240,7 +228,6 @@ co2_task (void *p)
    while (1)
    {
       usleep (100000);
-      xSemaphoreTake (co2i2c_mutex, portMAX_DELAY);
       i2c_cmd_handle_t i = co2_cmd (0x0202);    // Get ready state
       i2c_master_stop (i);
       esp_err_t err = i2c_master_cmd_begin (co2port, i, 10 / portTICK_PERIOD_MS);
@@ -330,7 +317,6 @@ co2_task (void *p)
             }
          }
       }
-      xSemaphoreGive (co2i2c_mutex);
    }
 }
 
@@ -369,16 +355,14 @@ app_main ()
 #undef u8
 #undef b
 #undef s
-	         revk_register ("logo", 0, sizeof (logo), &logo, NULL, SETTING_BINARY);    // fixed logo
-      {
+      revk_register ("logo", 0, sizeof (logo), &logo, NULL, SETTING_BINARY);    // fixed logo
+   {
       int p;
       for (p = 0; p < sizeof (logo) && !logo[p]; p++);
       if (p == sizeof (logo))
          memcpy (logo, aalogo, sizeof (logo));  // default
    }
-      oled_mutex = xSemaphoreCreateMutex ();    // Shared text access
    oled_contrast = oledcontrast;        // Initial contrast
-   memset (oled, 0x00, sizeof (oled));  // Blank
    if (co2sda >= 0 && co2scl >= 0)
    {
       co2port = 0;
@@ -404,43 +388,13 @@ app_main ()
          } else
             i2c_set_timeout (co2port, 160000);  // 2ms? allow for clock stretching
       }
-      co2i2c_mutex = xSemaphoreCreateMutex ();
    }
-   if (oledsda == co2sda && oledscl == co2scl)
-   {
-      oledport = co2port;
-      oledi2c_mutex = co2i2c_mutex;     // Shared
-   } else if (oledsda >= 0 && oledscl >= 0)
-   {                            // Separate OLED port
-      oledport = 1;
-      if (i2c_driver_install (oledport, I2C_MODE_MASTER, 0, 0, 0))
-      {
-         revk_error ("OLED", "I2C config fail");
-         oledport = -1;
-      } else
-      {
-         i2c_config_t config = {
-            .mode = I2C_MODE_MASTER,
-            .sda_io_num = oledsda,
-            .scl_io_num = oledscl,
-            .sda_pullup_en = true,
-            .scl_pullup_en = true,
-            .master.clk_speed = 100000,
-         };
-         if (i2c_param_config (oledport, &config))
-         {
-            i2c_driver_delete (oledport);
-            revk_error ("OLED", "I2C config fail");
-            oledport = -1;
-         } else
-            i2c_set_timeout (oledport, 160000); // 2ms? allow for clock stretching
-      }
-      oledi2c_mutex = xSemaphoreCreateMutex ();
-   }
+   if (oledsda == co2sda || oledscl == co2scl)
+      revk_error ("OLED", "Clash");
+   else if (oledsda >= 0 && oledscl >= 0)
+      oled_start (1, oledaddress, oledscl, oledsda, 1 - oledflip);
    if (co2port >= 0)
       revk_task ("CO2", co2_task, NULL);
-   if (oledport >= 0)
-      revk_task ("OLED", oled_task, NULL);
    if (ds18b20 >= 0)
    {                            // DS18B20 init
       owb = owb_rmt_initialize (&rmt_driver_info, ds18b20, RMT_CHANNEL_1, RMT_CHANNEL_0);
@@ -504,12 +458,12 @@ app_main ()
       // Next second
       usleep (1000000LL - (esp_timer_get_time () % 1000000LL));
       // Display
-      xSemaphoreTake (oled_mutex, portMAX_DELAY);
+      oled_lock ();
       char s[30];
       time_t now = time (0);
       if (oled_dark)
       {                         // Night mode, just time
-         memset (oled, 0, sizeof (oled));
+         oled_clear ();
          showlogo = 1;
          showtime = 0;
          showco2 = -1000;
@@ -518,14 +472,14 @@ app_main ()
          struct tm t;
          localtime_r (&now, &t);
          strftime (s, sizeof (s), "%H:%M", &t);
-         oled_text (1, 0, 0, s);
-         xSemaphoreGive (oled_mutex);
+         oled_text (0, 0, 0, s);
+         oled_unlock ();
          continue;
       }
       if (showlogo)
       {
          showlogo = 0;
-         icon (OLEDW - sizeof (logo[0]) * 8 / OLEDB, 10, logo, sizeof (logo[0]) * 8 / OLEDB, sizeof (logo) / sizeof (*logo));
+         oled_icon (CONFIG_OLED_WIDTH - LOGOW, 10, logo, LOGOW, LOGOH);
       }
       if (now != showtime)
       {
@@ -545,8 +499,8 @@ app_main ()
          }
       }
       int x,
-        y = OLEDH - 1,
-         space = (OLEDH - 28 - 35 - 21 - 9) / 3;
+        y = CONFIG_OLED_HEIGHT - 1,
+         space = (CONFIG_OLED_HEIGHT - 28 - 35 - 21 - 9) / 3;
       y -= 28;
       if (thisco2 != showco2)
       {
@@ -607,7 +561,6 @@ app_main ()
       if (fanco2)
          oled_text (3, 58, y, thisco2 > fanco2 ? "*" : " ");
       y -= space;
-      xSemaphoreGive (oled_mutex);
-
+      oled_unlock ();
    }
 }
