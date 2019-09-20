@@ -12,6 +12,7 @@ const char TAG[] = "CO2";
 #include "oled.h"
 
 #include "logo.h"
+#include "fan.h"
 // Setting for "logo" is 32x32 bytes (4 bits per pixel)
 // Note that MQTT config needs to allow a large enough message for the logo
 #define LOGOW   32
@@ -435,25 +436,26 @@ app_main ()
    float showrh = -1000;
    while (1)
    {
-      // Fan control
-      const char *fan = NULL;
-      if (thisco2 > fanco2 && lastfan != 1)
-      {
-         fan = fanon;
-         lastfan = 1;
-      } else if (thisco2 < fanco2 && lastfan != 0)
-      {
-         fan = fanoff;
-         lastfan = 0;
-      }
-      if (fan && *fan)
-      {
-         char *topic = strdup (fan);
-         char *data = strchr (topic, ' ');
-         if (data)
-            *data++ = 0;
-         revk_raw (NULL, topic, data ? strlen (data) : 0, data, 0);
-         free (topic);
+      {                         // Fan control
+         const char *fan = NULL;
+         if (thisco2 > fanco2 && lastfan != 1)
+         {
+            fan = fanon;
+            lastfan = 1;
+         } else if (thisco2 < fanco2 && lastfan != 0)
+         {
+            fan = fanoff;
+            lastfan = 0;
+         }
+         if (fan && *fan)
+         {
+            char *topic = strdup (fan);
+            char *data = strchr (topic, ' ');
+            if (data)
+               *data++ = 0;
+            revk_raw (NULL, topic, data ? strlen (data) : 0, data, 0);
+            free (topic);
+         }
       }
       // Next second
       usleep (1000000LL - (esp_timer_get_time () % 1000000LL));
@@ -479,7 +481,7 @@ app_main ()
       if (showlogo)
       {
          showlogo = 0;
-         oled_icon (CONFIG_OLED_WIDTH - LOGOW, 10, logo, LOGOW, LOGOH);
+         oled_icon (CONFIG_OLED_WIDTH - LOGOW, 12, logo, LOGOW, LOGOH);
       }
       if (now != showtime)
       {
@@ -514,6 +516,8 @@ app_main ()
          x = oled_text (4, 0, y, s);
          oled_text (1, x, y + 9, "CO2");
          x = oled_text (-1, x, y, "ppm");
+         if (fanco2)
+            oled_icon (CONFIG_OLED_WIDTH - LOGOW * 2, 12, showco2 > fanco2 ? fan : NULL, LOGOW, LOGOH);
       }
       y -= space;               // Space
       y -= 35;
@@ -558,8 +562,6 @@ app_main ()
          oled_text (1, x, y + 8, "R");
          x = oled_text (1, x, y, "H");
       }
-      if (fanco2)
-         oled_icon (CONFIG_OLED_WIDTH - LOGOW * 2, 10, thisco2 > fanco2 ? logo : NULL, LOGOW, LOGOH);
       y -= space;
       oled_unlock ();
    }
