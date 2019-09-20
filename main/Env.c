@@ -9,6 +9,13 @@ const char TAG[] = "CO2";
 #include "owb.h"
 #include "owb_rmt.h"
 #include "ds18b20.h"
+#include "oled.h"
+
+#include "logo.h"
+// Setting for "logo" is 32x32 bytes (4 bits per pixel)
+// Note that MQTT config needs to allow a large enough message for the logo
+#define LOGOW   32
+#define LOGOH   32
 
 #define ACK_CHECK_EN 0x1        /*!< I2C master will check ack from slave */
 #define ACK_CHECK_DIS 0x0       /*!< I2C master will not check ack from slave */
@@ -48,6 +55,7 @@ settings
 #undef u8
 #undef b
 #undef s
+static uint8_t logo[LOGOW * LOGOH / 2];
 static float lastco2 = -10000;
 static float lastrh = -10000;
 static float lasttemp = -10000;
@@ -146,224 +154,6 @@ app_command (const char *tag, unsigned int len, const unsigned char *value)
    if (!strcmp (tag, "co2alt"))
       return co2_setting (0x5102, atoi ((char *) value));
    return NULL;
-}
-
-#define	OLEDW	128
-#define	OLEDH	128
-#define	OLEDB	4
-static uint8_t oled[OLEDW * OLEDH * OLEDB / 8];
-
-static inline void
-oledbit (int x, int y, uint8_t v)
-{
-   uint8_t m = (1 << OLEDB) - 1;
-   if (x < 0 || x >= OLEDW)
-      return;
-   if (y < 0 || y >= OLEDH)
-      return;
-   if (v > m)
-      v = m;
-   int s = ((8 / OLEDB) - 1 - (x % (8 / OLEDB))) * OLEDB;
-   int o = y * OLEDW * OLEDB / 8 + x * OLEDB / 8;
-   uint8_t new = ((oled[o] & ~(m << s)) | (v << s));
-   if (oled[o] == new)
-      return;
-   oled[o] = new;
-   oled_changed = 1;
-}
-
-static inline int
-oledcopy (int x, int y, const uint8_t * src, int dx)
-{                               // Copy pixels
-   x -= x % (8 / OLEDB);        // Align to byte
-   dx -= dx % (8 / OLEDB);      // Align to byte
-   if (y >= 0 && y < OLEDH && x + dx >= 0 && x < OLEDW)
-   {                            // Fits
-      int pix = dx;
-      if (x < 0)
-      {                         // Truncate left
-         pix += x;
-         x = 0;
-      }
-      if (x + pix > OLEDW)
-         pix = OLEDW - x;       // Truncate right
-      uint8_t *dst = oled + y * OLEDW * OLEDB / 8 + x * OLEDB / 8;
-      if (src)
-      {                         // Copy
-         if (memcmp (dst, src, pix * OLEDB / 8))
-         {                      // Changed
-            memcpy (dst, src, pix * OLEDB / 8);
-            oled_changed = 1;
-         }
-      } else
-      {                         // Clear
-         memset (dst, 0, pix * OLEDB / 8);
-         oled_changed = 1;
-      }
-   }
-   if (!src)
-      return 0;
-   return dx * OLEDB / 8;       // Bytes (would be) copied
-}
-
-#include CONFIG_ENV_LOGO
-#include "font1.h"
-#include "font2.h"
-#include "font3.h"
-#include "font4.h"
-#include "font5.h"
-const uint8_t *const fonts[] = { font1, font2, font3, font4, font5 };
-
-static inline int
-textw (uint8_t size)
-{
-   return size * 6;
-}
-
-static inline int
-texth (uint8_t size)
-{
-   return size * 9;
-}
-
-static int
-text (int8_t size, int x, int y, char *t)
-{                               // Size negative for descenders
-   int z = 7;
-   if (size < 0)
-   {
-      size = -size;
-      z = 9;
-   }
-   if (!size)
-      size = 1;
-   else if (size > sizeof (fonts) / sizeof (*fonts))
-      size = sizeof (fonts) / sizeof (*fonts);
-   int w = textw (size);
-   int h = texth (size);
-   y -= size * 2;               // Baseline
-   while (*t)
-   {
-      int c = *t++;
-      if (c >= 0x7F)
-         continue;
-      const uint8_t *base = fonts[size - 1] + (c - ' ') * h * w * OLEDB / 8;
-      int ww = w;
-      if (c < ' ')
-      {                         // Sub space
-         ww = size * c;
-         c = ' ';
-      }
-      if (c == '.' || c == ':')
-      {
-         ww = size * 2;
-         base += size * 2 * OLEDB / 8;
-      }                         // Special case for .
-      c -= ' ';
-      for (int dy = 0; dy < size * z; dy++)
-      {
-         oledcopy (x, y + h - 1 - dy, base, ww);
-         base += w * OLEDB / 8;
-      }
-      x += ww;
-   }
-   return x;
-}
-
-static int
-icon (int x, int y, const void *p, int w, int h)
-{                               // Plot an icon
-   for (int dy = 0; dy < h; dy++)
-      p += oledcopy (x, y + h - dy - 1, p, w);
-   return x + w;
-}
-
-void
-oled_task (void *p)
-{
-   int try = 10;
-   esp_err_t e;
-   while (try--)
-   {
-      xSemaphoreTake (oledi2c_mutex, portMAX_DELAY);
-      oled_changed = 0;
-      i2c_cmd_handle_t t = i2c_cmd_link_create ();
-      i2c_master_start (t);
-      i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
-      i2c_master_write_byte (t, 0x00, true);    // Cmds
-      i2c_master_write_byte (t, 0xA5, true);    // White
-      i2c_master_write_byte (t, 0xAF, true);    // On
-      i2c_master_write_byte (t, 0xA0, true);    // Remap
-      i2c_master_write_byte (t, oledflip ? 0x41 : 0x52, true);  // Match display
-      i2c_master_stop (t);
-      e = i2c_master_cmd_begin (oledport, t, 10 / portTICK_PERIOD_MS);
-      i2c_cmd_link_delete (t);
-      xSemaphoreGive (oledi2c_mutex);
-      if (!e)
-         break;
-      sleep (1);
-   }
-   if (e)
-   {
-      revk_error ("OLED", "Configuration failed %s", esp_err_to_name (e));
-      vTaskDelete (NULL);
-      return;
-   }
-
-   while (1)
-   {                            // Update
-      if (!oled_changed)
-      {
-         usleep (100000);
-         continue;
-      }
-      xSemaphoreTake (oledi2c_mutex, portMAX_DELAY);
-      xSemaphoreTake (oled_mutex, portMAX_DELAY);
-      oled_changed = 0;
-      i2c_cmd_handle_t t;
-      e = 0;
-      if (oled_update < 2)
-      {                         // Set up
-         t = i2c_cmd_link_create ();
-         i2c_master_start (t);
-         i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
-         i2c_master_write_byte (t, 0x00, true); // Cmds
-         if (oled_update)
-            i2c_master_write_byte (t, 0xA4, true);      // Normal mode
-         i2c_master_write_byte (t, 0x81, true); // Contrast
-         i2c_master_write_byte (t, oled_dark ? 0 : oled_contrast, true);        // Contrast
-         i2c_master_write_byte (t, 0x15, true); // Col
-         i2c_master_write_byte (t, 0x00, true); // 0
-         i2c_master_write_byte (t, 0x7F, true); // 127
-         i2c_master_write_byte (t, 0x75, true); // Row
-         i2c_master_write_byte (t, 0x00, true); // 0
-         i2c_master_write_byte (t, 0x7F, true); // 127
-         i2c_master_stop (t);
-         e = i2c_master_cmd_begin (oledport, t, 100 / portTICK_PERIOD_MS);
-         i2c_cmd_link_delete (t);
-      }
-      if (!e)
-      {                         // data
-         t = i2c_cmd_link_create ();
-         i2c_master_start (t);
-         i2c_master_write_byte (t, (oledaddress << 1) | I2C_MASTER_WRITE, true);
-         i2c_master_write_byte (t, 0x40, true); // Data
-         i2c_master_write (t, oled, sizeof (oled), true);       // Buffer
-         i2c_master_stop (t);
-         e = i2c_master_cmd_begin (oledport, t, 100 / portTICK_PERIOD_MS);
-         i2c_cmd_link_delete (t);
-      }
-      if (e)
-         revk_error ("OLED", "Data failed %s", esp_err_to_name (e));
-      if (!oled_update || e)
-      {
-         oled_update = 1;       // Resend data
-         oled_changed = 1;
-      } else
-         oled_update = 2;       // All OK
-      xSemaphoreGive (oled_mutex);
-      xSemaphoreGive (oledi2c_mutex);
-   }
 }
 
 static uint8_t
@@ -579,6 +369,13 @@ app_main ()
 #undef u8
 #undef b
 #undef s
+	         revk_register ("logo", 0, sizeof (logo), &logo, NULL, SETTING_BINARY);    // fixed logo
+      {
+      int p;
+      for (p = 0; p < sizeof (logo) && !logo[p]; p++);
+      if (p == sizeof (logo))
+         memcpy (logo, aalogo, sizeof (logo));  // default
+   }
       oled_mutex = xSemaphoreCreateMutex ();    // Shared text access
    oled_contrast = oledcontrast;        // Initial contrast
    memset (oled, 0x00, sizeof (oled));  // Blank
@@ -721,7 +518,7 @@ app_main ()
          struct tm t;
          localtime_r (&now, &t);
          strftime (s, sizeof (s), "%H:%M", &t);
-         text (1, 0, 0, s);
+         oled_text (1, 0, 0, s);
          xSemaphoreGive (oled_mutex);
          continue;
       }
@@ -744,7 +541,7 @@ app_main ()
          if (t.tm_year > 100)
          {
             strftime (s, sizeof (s), "%F\004%T %Z", &t);
-            text (1, 0, 0, s);
+            oled_text (1, 0, 0, s);
          }
       }
       int x,
@@ -760,9 +557,9 @@ app_main ()
             strcpy (s, "^^^^");
          else
             sprintf (s, "%4d", (int) showco2);
-         x = text (4, 0, y, s);
-         text (1, x, y + 9, "CO2");
-         x = text (-1, x, y, "ppm");
+         x = oled_text (4, 0, y, s);
+         oled_text (1, x, y + 9, "CO2");
+         x = oled_text (-1, x, y, "ppm");
       }
       y -= space;               // Space
       y -= 35;
@@ -787,9 +584,9 @@ app_main ()
             else
                sprintf (s, "%4.1f", showtemp);
          }
-         x = text (5, 10, y, s);
-         x = text (1, x, y + 12, "o");
-         x = text (2, x, y, f ? "F" : "C");
+         x = oled_text (5, 10, y, s);
+         x = oled_text (1, x, y + 12, "o");
+         x = oled_text (2, x, y, f ? "F" : "C");
       }
       y -= space;               // Space
       y -= 21;
@@ -802,13 +599,13 @@ app_main ()
             strcpy (s, "^^");
          else
             sprintf (s, "%2d", (int) showrh);
-         x = text (3, 0, y, s);
-         x = text (2, x, y, "%");
-         text (1, x, y + 8, "R");
-         x = text (1, x, y, "H");
+         x = oled_text (3, 0, y, s);
+         x = oled_text (2, x, y, "%");
+         oled_text (1, x, y + 8, "R");
+         x = oled_text (1, x, y, "H");
       }
       if (fanco2)
-         text (3, 58, y, thisco2 > fanco2 ? "*" : " ");
+         oled_text (3, 58, y, thisco2 > fanco2 ? "*" : " ");
       y -= space;
       xSemaphoreGive (oled_mutex);
 
