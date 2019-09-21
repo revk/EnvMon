@@ -109,6 +109,7 @@ main (int argc, const char *argv[])
    struct data_s
    {
       const char *arg;
+      const char *unit;
       const char *colour;
       xml_t g;
       char *path;
@@ -120,9 +121,9 @@ main (int argc, const char *argv[])
       double scale;
       char m;
    } data[MAX] = {
-    {arg: "co2", colour: "green", scale: ysize / co2step, min: co2base, max: co2base, line:co2line},
-    {arg: "temp", colour: "red", scale: ysize / tempstep, min: tempbase, max: tempbase, line:templine},
-    {arg: "rh", colour: "blue", scale: ysize / rhstep, min: rhbase, max: rhbase, line:rhline},
+    {arg: "co2", colour: "green", scale: ysize / co2step, min: co2base, max: co2base, line: co2line, unit:"ppm"},
+    {arg: "temp", colour: "red", scale: ysize / tempstep, min: tempbase, max: tempbase, line: templine, unit:"℃"},
+    {arg: "rh", colour: "blue", scale: ysize / rhstep, min: rhbase, max: rhbase, line: rhline, unit:"%"},
    };
    int d;
    int day = 0;
@@ -232,8 +233,11 @@ main (int argc, const char *argv[])
       {
          xml_t t = xml_addf (g, "+text", d == TEMP ? "%.1f" : "%.0f", v);
          xml_addf (t, "@transform", "translate(%d,%d)scale(1,-1)", d * 40 + 40, (int) (v * data[d].scale));
-      xml_add (t, "@alignment-baseline", "middle");
+         xml_add (t, "@alignment-baseline", "middle");
       }
+      xml_t t = xml_add (g, "+text", data[d].unit);
+      xml_addf (t, "@transform", "translate(%d,%d)scale(1,-1)", d * 40 + 40, (int) (data[d].max * data[d].scale));
+      xml_add (t, "@alignment-baseline", "hanging");
       // Reference line
       int y = data[d].line * data[d].scale;
       if (y >= 0 && y <= maxy)
