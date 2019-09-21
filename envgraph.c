@@ -31,7 +31,7 @@ main (int argc, const char *argv[])
    double rhstep = 3;
    double co2base = 400;
    double tempbase = 10;
-   double rhbase = 0;
+   double rhbase = 10;
    double co2line = 1000;
    double templine = 21;
    double rhline = 30;
@@ -231,6 +231,12 @@ main (int argc, const char *argv[])
       xml_add (g, "@fill", data[d].colour);
       for (double v = data[d].min + ysize / data[d].scale; v < data[d].max; v += ysize / data[d].scale)
       {
+         if (d == RH && v < 0)
+            continue;
+         if (d == RH && v > 100)
+            break;
+         if (d == CO2 && v < 0)
+            continue;
          xml_t t = xml_addf (g, "+text", d == TEMP ? "%.1f" : "%.0f", v);
          xml_addf (t, "@transform", "translate(%d,%d)scale(1,-1)", d * 40 + 40, (int) (v * data[d].scale));
          xml_add (t, "@alignment-baseline", "middle");
@@ -240,12 +246,9 @@ main (int argc, const char *argv[])
       xml_add (t, "@alignment-baseline", "hanging");
       // Reference line
       int y = data[d].line * data[d].scale;
-      if (y >= 0 && y <= maxy)
-      {
-         xml_t l = xml_element_add (g, "path");
-         xml_addf (l, "@d", "M0,%dL%d,%d", y, maxx, y);
-         xml_add (l, "@stroke-dasharray", "1");
-      }
+      xml_t l = xml_element_add (g, "path");
+      xml_addf (l, "@d", "M0,%dL%d,%d", y, maxx, y);
+      xml_add (l, "@stroke-dasharray", "1");
    }
    for (int x = xsize; x < maxx; x += xsize)
    {
@@ -258,10 +261,7 @@ main (int argc, const char *argv[])
    xml_addf (svg, "@height", "%d", maxy + 1);
    // Position and invert
    for (d = 0; d < MAX; d++)
-   {
       xml_addf (data[d].g, "@transform", "translate(0,%.1f)scale(1,-1)", data[d].scale * data[d].max);
-      // Axis
-   }
    // Write out
    xml_write (stdout, svg);
    xml_tree_delete (svg);
