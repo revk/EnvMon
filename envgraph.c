@@ -210,15 +210,14 @@ main (int argc, const char *argv[])
    xml_add (top, "@font-family", "sans-serif");
    for (d = 0; d < MAX; d++)
    {
-	   // TODO move to axis once we have aligned
+      // TODO move to axis once we have aligned
       xml_t g = xml_element_add (data[d].g, "g");
       xml_add (g, "@opacity", "0.5");
-      for (int y = 0; y <= maxy; y += ysize)
+      for (double v = data[d].min; v <= data[d].max; v += ysize / data[d].scale)
       {
-         double v = (double) y / data[d].scale + data[d].min;
          xml_t t = xml_addf (g, "+text", d == TEMP ? "%.1f" : "%.0f", v);
          xml_addf (t, "@x", "%d", d * 40 + 20);
-         xml_addf (t, "@y", "%d", y);
+         xml_addf (t, "@y", "%d", (int) (v * data[d].scale));
          xml_add (t, "@alignment-baseline", "middle");
          xml_add (t, "@fill", data[d].colour);
       }
