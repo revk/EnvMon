@@ -116,7 +116,7 @@ sendall (void)
 const char *
 app_command (const char *tag, unsigned int len, const unsigned char *value)
 {
-   if (!strcmp (tag, "send"))
+   if (!strcmp (tag, "send") || !strcmp (tag, "connect"))
    {
       sendall ();
       return "";
@@ -124,11 +124,13 @@ app_command (const char *tag, unsigned int len, const unsigned char *value)
    if (!strcmp (tag, "night"))
    {
       oled_dark = 1;
+      oled_set_contrast (0);
       return "";
    }
    if (!strcmp (tag, "day"))
    {
       oled_dark = 0;
+      oled_set_contrast (oledcontrast);
       return "";
    }
    if (!strcmp (tag, "contrast"))
