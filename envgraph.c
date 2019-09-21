@@ -32,6 +32,9 @@ main (int argc, const char *argv[])
    double co2base = 400;
    double tempbase = 0;
    double rhbase = 0;
+   double co2line = 1000;
+   double templine = 21;
+   double rhline = 30;
    int debug = 0;
    int days = 1;
    {                            // POPT
@@ -52,6 +55,9 @@ main (int argc, const char *argv[])
          {"temp-base", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &tempbase, 0, "Temp base", "Celsius"},
          {"co2-base", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &co2base, 0, "CO₂ base", "ppm"},
          {"rh-base", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &rhbase, 0, "RH base", "%"},
+         {"temp-line", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &templine, 0, "Temp line", "Celsius"},
+         {"co2-line", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &co2line, 0, "CO₂ line", "ppm"},
+         {"rh-line", 0, POPT_ARG_DOUBLE | POPT_ARGFLAG_SHOW_DEFAULT, &rhline, 0, "RH line", "%"},
          {"tag", 'i', POPT_ARG_STRING, &tag, 0, "Device ID", "tag"},
          {"date", 'D', POPT_ARG_STRING, &date, 0, "Date", "YYYY-MM-DD"},
          {"days", 'N', POPT_ARG_INT | POPT_ARGFLAG_SHOW_DEFAULT, &days, 0, "Days", "N"},
@@ -108,14 +114,15 @@ main (int argc, const char *argv[])
       char *path;
       size_t size;
       FILE *f;
+      double line;
       double min;
       double max;
       double scale;
       char m;
    } data[MAX] = {
-    {arg: "co2", colour: "green", scale: ysize / co2step, min: co2base, max:co2base},
-    {arg: "temp", colour: "red", scale: ysize / tempstep, min: tempbase, max:tempbase},
-    {arg: "rh", colour: "blue", scale: ysize / rhstep, min: rhbase, max:rhbase},
+    {arg: "co2", colour: "green", scale: ysize / co2step, min: co2base, max: co2base, line:co2line},
+    {arg: "temp", colour: "red", scale: ysize / tempstep, min: tempbase, max: tempbase, line:templine},
+    {arg: "rh", colour: "blue", scale: ysize / rhstep, min: rhbase, max: rhbase, line:rhline},
    };
    int d;
    int day = 0;
@@ -185,11 +192,16 @@ main (int argc, const char *argv[])
    sql_close (&sql);
    eod ();
    maxx = floor ((maxx + xsize - 1) / xsize) * xsize;
-   int maxy = ysize * 30;
+   int maxy = 0;
    // Normalise min and work out y size
    for (d = 0; d < MAX; d++)
    {
-
+      data[d].min = floor (data[d].min * data[d].scale / ysize) * ysize / data[d].scale;
+      data[d].max = floor (data[d].max * data[d].scale / ysize + 1) * ysize / data[d].scale;
+      double v = data[d].max - data[d].min;
+      int y = v / data[d].scale;
+      if (y > maxy)
+         maxy = y;
    }
    // Grid
    xml_add (grid, "@stroke", "black");
@@ -210,16 +222,24 @@ main (int argc, const char *argv[])
    xml_add (top, "@font-family", "sans-serif");
    for (d = 0; d < MAX; d++)
    {
-      // TODO move to axis once we have aligned
       xml_t g = xml_element_add (data[d].g, "g");
       xml_add (g, "@opacity", "0.5");
       for (double v = data[d].min; v <= data[d].max; v += ysize / data[d].scale)
       {
          xml_t t = xml_addf (g, "+text", d == TEMP ? "%.1f" : "%.0f", v);
-         xml_addf (t, "@x", "%d", d * 40 + 20);
-         xml_addf (t, "@y", "%d", (int) (v * data[d].scale));
+         //xml_addf (t, "@x", "%d", d * 40 + 20);
+         //xml_addf (t, "@y", "%d", (int) (v * data[d].scale));
          xml_add (t, "@alignment-baseline", "middle");
          xml_add (t, "@fill", data[d].colour);
+         xml_addf (t, "@transform", "translate(%d,%d)scale(1,-1)", d * 40 + 20, (int) (v * data[d].scale));
+      }
+      // Reference line
+      int y = data[d].line * data[d].scale;
+      if (y >= 0 && y <= maxy)
+      {
+         xml_t l = xml_element_add (g, "path");
+         xml_addf (l, "@d", "M0,%dL%d,%d", y, maxx, y);
+         xml_add (l, "@stroke-dasharray", "1");
       }
    }
    for (int x = 0; x <= maxx; x += xsize)
