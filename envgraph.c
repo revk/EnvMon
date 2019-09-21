@@ -9,6 +9,7 @@
 #include <curl/curl.h>
 #include <sqllib.h>
 #include <axl.h>
+#include <math.h>
 
 int debug = 0;
 
@@ -112,17 +113,20 @@ main (int argc, const char *argv[])
       double scale;
       char m;
    } data[MAX] = {
-    {arg: "co2", colour: "green", scale:ysize / co2step},
-    {arg: "temp", colour: "red", scale:ysize / tempstep},
-    {arg: "rh", colour: "blue", scale:ysize / rhstep},
+    {arg: "co2", colour: "green", scale: ysize / co2step, min: co2base, max:co2base},
+    {arg: "temp", colour: "red", scale: ysize / tempstep, min: tempbase, max:tempbase},
+    {arg: "rh", colour: "blue", scale: ysize / rhstep, min: rhbase, max:rhbase},
    };
    int d;
    int day = 0;
    xml_t svg = xml_tree_new ("svg");
    xml_element_set_namespace (svg, xml_namespace (svg, NULL, "http://www.w3.org/2000/svg"));
+   xml_t top = xml_element_add (svg, "g");
+   xml_t grid = xml_element_add (top, "g");
+   xml_t axis = xml_element_add (top, "g");
    for (d = 0; d < MAX; d++)
    {
-      data[d].g = xml_element_add (svg, "g");
+      data[d].g = xml_element_add (top, "g");
       xml_add (data[d].g, "@stroke", data[d].colour);
       xml_add (data[d].g, "@fill", "none");
    }
@@ -131,8 +135,6 @@ main (int argc, const char *argv[])
       for (d = 0; d < MAX; d++)
       {
          data[d].f = open_memstream (&data[d].path, &data[d].size);
-         data[d].min = -1000;
-         data[d].max = -1000;
          data[d].m = 'M';
       }
    }
@@ -148,7 +150,7 @@ main (int argc, const char *argv[])
          free (data[d].path);
       }
    }
-   int maxx=0;
+   int maxx = 0;
    sod ();
    time_t start = xml_time (date);
    while (sql_fetch_row (res))
@@ -167,12 +169,13 @@ main (int argc, const char *argv[])
          if (!val)
             continue;
          double v = strtod (val, NULL);
-         if (data[d].min <= -1000 || data[d].min > v)
+         if (data[d].min > v)
             data[d].min = v;
-         if (data[d].max <= -1000 || data[d].max < v)
+         if (data[d].max < v)
             data[d].max = v;
          int x = (xml_time (when) - start) * xsize / 3600;
-	 if(x>maxx)maxx=x;
+         if (x > maxx)
+            maxx = x;
          int y = v * data[d].scale;
          fprintf (data[d].f, "%c%d,%d", data[d].m, x, y);
          data[d].m = 'L';
@@ -181,12 +184,54 @@ main (int argc, const char *argv[])
    sql_free_result (res);
    sql_close (&sql);
    eod ();
+   maxx = floor ((maxx + xsize - 1) / xsize) * xsize;
+   int maxy = ysize * 30;
    // Normalise min and work out y size
    for (d = 0; d < MAX; d++)
    {
+
    }
-   xml_addf (svg, "@width", "%d",maxx);
-   xml_addf (svg, "@height", "%d",(int)ysize*30); // TODO
+   // Grid
+   xml_add (grid, "@stroke", "black");
+   xml_add (grid, "@fill", "none");
+   xml_add (grid, "@opacity", "0.1");
+   for (int y = 0; y <= maxy; y += ysize)
+   {
+      xml_t l = xml_element_add (grid, "path");
+      xml_addf (l, "@d", "M0,%dL%d,%d", y, maxx, y);
+   }
+   for (int x = 0; x <= maxx; x += xsize)
+   {
+      xml_t l = xml_element_add (grid, "path");
+      xml_addf (l, "@d", "M%d,0L%d,%d", x, x, maxy);
+   }
+   // Axis
+   xml_add (axis, "@opacity", "0.5");
+   xml_add (top, "@font-family", "sans-serif");
+   for (d = 0; d < MAX; d++)
+   {
+	   // TODO move to axis once we have aligned
+      xml_t g = xml_element_add (data[d].g, "g");
+      xml_add (g, "@opacity", "0.5");
+      for (int y = 0; y <= maxy; y += ysize)
+      {
+         double v = (double) y / data[d].scale + data[d].min;
+         xml_t t = xml_addf (g, "+text", d == TEMP ? "%.1f" : "%.0f", v);
+         xml_addf (t, "@x", "%d", d * 40 + 20);
+         xml_addf (t, "@y", "%d", y);
+         xml_add (t, "@alignment-baseline", "middle");
+         xml_add (t, "@fill", data[d].colour);
+      }
+   }
+   for (int x = 0; x <= maxx; x += xsize)
+   {
+      xml_t t = xml_addf (axis, "+text", "%02d", (int) (x / xsize) % 24);
+      xml_addf (t, "@x", "%d", x);
+      xml_addf (t, "@y", "%d", maxy);
+      xml_add (axis, "@text-anchor", "middle");
+   }
+   xml_addf (svg, "@width", "%d", maxx + 1);
+   xml_addf (svg, "@height", "%d", maxy + 1);
    // Position and invert
    for (d = 0; d < MAX; d++)
    {
