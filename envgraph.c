@@ -158,7 +158,6 @@ main (int argc, const char *argv[])
       {                         // New day
          memcpy (date, when, 10);
          start = xml_time (date);
-         fprintf (stderr, "%s\n", date);
          eod ();
          sod ();
       }
