@@ -72,7 +72,6 @@ static owb_rmt_driver_info rmt_driver_info;
 static DS18B20_Info *ds18b20s[MAX_OWB] = { 0 };
 
 static volatile uint8_t oled_update = 0;
-static volatile uint8_t oled_contrast = 0;
 static volatile uint8_t oled_changed = 1;
 static volatile uint8_t oled_dark = 0;
 
@@ -365,7 +364,6 @@ app_main ()
       if (p == sizeof (logo))
          memcpy (logo, aalogo, sizeof (logo));  // default
    }
-   oled_contrast = oledcontrast;        // Initial contrast
    if (co2sda >= 0 && co2scl >= 0)
    {
       co2port = 0;
@@ -396,6 +394,7 @@ app_main ()
       revk_error ("OLED", "Clash");
    else if (oledsda >= 0 && oledscl >= 0)
       oled_start (1, oledaddress, oledscl, oledsda, 1 - oledflip);
+   oled_set_contrast (oledcontrast);
    if (co2port >= 0)
       revk_task ("CO2", co2_task, NULL);
    if (ds18b20 >= 0)
