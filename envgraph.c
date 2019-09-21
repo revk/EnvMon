@@ -30,7 +30,7 @@ main (int argc, const char *argv[])
    double co2step = 50;
    double rhstep = 3;
    double co2base = 400;
-   double tempbase = 0;
+   double tempbase = 10;
    double rhbase = 0;
    double co2line = 1000;
    double templine = 21;
@@ -199,10 +199,12 @@ main (int argc, const char *argv[])
       data[d].min = floor (data[d].min * data[d].scale / ysize) * ysize / data[d].scale;
       data[d].max = floor (data[d].max * data[d].scale / ysize + 1) * ysize / data[d].scale;
       double v = data[d].max - data[d].min;
-      int y = v / data[d].scale;
+      int y = v * data[d].scale;
       if (y > maxy)
          maxy = y;
    }
+   for (d = 0; d < MAX; d++)
+      data[d].max = data[d].min + (double) maxy / data[d].scale;
    // Grid
    xml_add (grid, "@stroke", "black");
    xml_add (grid, "@fill", "none");
@@ -224,14 +226,13 @@ main (int argc, const char *argv[])
    {
       xml_t g = xml_element_add (data[d].g, "g");
       xml_add (g, "@opacity", "0.5");
-      for (double v = data[d].min; v <= data[d].max; v += ysize / data[d].scale)
+      xml_add (g, "@text-anchor", "end");
+      xml_add (g, "@fill", data[d].colour);
+      for (double v = data[d].min + ysize / data[d].scale; v < data[d].max; v += ysize / data[d].scale)
       {
          xml_t t = xml_addf (g, "+text", d == TEMP ? "%.1f" : "%.0f", v);
-         //xml_addf (t, "@x", "%d", d * 40 + 20);
-         //xml_addf (t, "@y", "%d", (int) (v * data[d].scale));
-         xml_add (t, "@alignment-baseline", "middle");
-         xml_add (t, "@fill", data[d].colour);
-         xml_addf (t, "@transform", "translate(%d,%d)scale(1,-1)", d * 40 + 20, (int) (v * data[d].scale));
+         xml_addf (t, "@transform", "translate(%d,%d)scale(1,-1)", d * 40 + 40, (int) (v * data[d].scale));
+      xml_add (t, "@alignment-baseline", "middle");
       }
       // Reference line
       int y = data[d].line * data[d].scale;
@@ -242,7 +243,7 @@ main (int argc, const char *argv[])
          xml_add (l, "@stroke-dasharray", "1");
       }
    }
-   for (int x = 0; x <= maxx; x += xsize)
+   for (int x = xsize; x < maxx; x += xsize)
    {
       xml_t t = xml_addf (axis, "+text", "%02d", (int) (x / xsize) % 24);
       xml_addf (t, "@x", "%d", x);
@@ -254,7 +255,7 @@ main (int argc, const char *argv[])
    // Position and invert
    for (d = 0; d < MAX; d++)
    {
-      xml_addf (data[d].g, "@transform", "translate(0,%.1f)scale(1,-1)", data[d].scale * (data[d].min + data[d].max));
+      xml_addf (data[d].g, "@transform", "translate(0,%.1f)scale(1,-1)", data[d].scale * data[d].max);
       // Axis
    }
    // Write out
