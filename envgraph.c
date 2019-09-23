@@ -120,6 +120,8 @@ main (int argc, const char *argv[])
       double max;
       double scale;
       char m;
+      int lastx;
+      int lasty;
    } data[MAX] = {
     {arg: "co2", colour: "green", scale: ysize / co2step, min: co2base, max: co2base, line: co2line, unit:"ppm"},
     {arg: "temp", colour: "red", scale: ysize / tempstep, min: tempbase, max: tempbase, line: templine, unit:"℃"},
@@ -164,30 +166,37 @@ main (int argc, const char *argv[])
    while (sql_fetch_row (res))
    {
       const char *when = sql_col (res, "when");
+      void add (void)
+      {
+         for (d = 0; d < MAX; d++)
+         {
+            const char *val = sql_col (res, data[d].arg);
+            if (!val)
+               continue;
+            double v = strtod (val, NULL);
+            if (data[d].min > v)
+               data[d].min = v;
+            if (data[d].max < v)
+               data[d].max = v;
+            int x = (xml_time (when) - start) * xsize / 3600;
+            if (x > maxx)
+               maxx = x;
+            int y = v * data[d].scale;
+            fprintf (data[d].f, "%c%d,%d", data[d].m, x, y);
+            data[d].m = 'L';
+         }
+      }
       if (strncmp (date, when, 10))
       {                         // New day
+         int x = (xml_time (when) - start) * xsize / 3600;
+         if (start && x <= floor ((maxx + xsize - 1) / xsize) * xsize)
+            add ();             // End of day
          memcpy (date, when, 10);
          start = xml_time (date);
          eod ();
          sod ();
       }
-      for (d = 0; d < MAX; d++)
-      {
-         const char *val = sql_col (res, data[d].arg);
-         if (!val)
-            continue;
-         double v = strtod (val, NULL);
-         if (data[d].min > v)
-            data[d].min = v;
-         if (data[d].max < v)
-            data[d].max = v;
-         int x = (xml_time (when) - start) * xsize / 3600;
-         if (x > maxx)
-            maxx = x;
-         int y = v * data[d].scale;
-         fprintf (data[d].f, "%c%d,%d", data[d].m, x, y);
-         data[d].m = 'L';
-      }
+      add ();
    }
    sql_free_result (res);
    sql_close (&sql);
