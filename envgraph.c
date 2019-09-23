@@ -184,6 +184,8 @@ main (int argc, const char *argv[])
             int y = v * data[d].scale;
             fprintf (data[d].f, "%c%d,%d", data[d].m, x, y);
             data[d].m = 'L';
+            data[d].lastx = x;
+            data[d].lasty = y;
          }
       }
       if (strncmp (date, when, 10))
@@ -201,6 +203,17 @@ main (int argc, const char *argv[])
    sql_free_result (res);
    sql_close (&sql);
    eod ();
+   for (d = 0; d < MAX; d++)
+      if (data[d].lastx)
+      {
+         xml_t c = xml_element_add (data[d].g, "circle");
+         xml_addf (c, "@cx", "%d", data[d].lastx);
+         xml_addf (c, "@cy", "%d", data[d].lasty);
+         xml_addf (c, "@r", "%d", (int) (ysize / 6));
+         xml_addf (c, "@fill", data[d].colour);
+         xml_add (c, "@stroke", "none");
+         xml_add (c, "@opacity", "0.5");
+      }
    maxx = floor ((maxx + xsize - 1) / xsize) * xsize;
    int maxy = 0;
    // Normalise min and work out y size
