@@ -482,7 +482,7 @@ app_main ()
       if (showlogo)
       {
          showlogo = 0;
-         oled_icon (CONFIG_OLED_WIDTH - LOGOW, 12, logo, LOGOW, LOGOH);
+         oled_icon (CONFIG_OLED_WIDTH - LOGOW - 5, 12, logo, LOGOW, LOGOH);
       }
       if (now != showtime)
       {
