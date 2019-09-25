@@ -482,7 +482,7 @@ app_main ()
       if (showlogo)
       {
          showlogo = 0;
-         oled_icon (CONFIG_OLED_WIDTH - LOGOW - 5, 12, logo, LOGOW, LOGOH);
+         oled_icon (CONFIG_OLED_WIDTH - LOGOW, 12, logo, LOGOW, LOGOH);
       }
       if (now != showtime)
       {
@@ -518,7 +518,7 @@ app_main ()
          oled_text (1, x, y + 9, "CO2");
          x = oled_text (-1, x, y, "ppm");
          if (fanco2)
-            oled_icon (CONFIG_OLED_WIDTH - LOGOW * 2, 12, showco2 > fanco2 ? fan : NULL, LOGOW, LOGOH);
+            oled_icon (CONFIG_OLED_WIDTH - LOGOW * 2 - 5, 12, showco2 > fanco2 ? fan : NULL, LOGOW, LOGOH);
       }
       y -= space;               // Space
       y -= 35;
