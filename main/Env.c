@@ -518,7 +518,7 @@ app_main ()
          oled_text (1, x, y + 9, "CO2");
          x = oled_text (-1, x, y, "ppm");
          if (fanco2)
-            oled_icon (CONFIG_OLED_WIDTH - LOGOW * 2 - 5, 12, showco2 > fanco2 ? fan : NULL, LOGOW, LOGOH);
+            oled_icon (CONFIG_OLED_WIDTH - LOGOW * 2 - 4, 12, showco2 > fanco2 ? fan : NULL, LOGOW, LOGOH);
       }
       y -= space;               // Space
       y -= 35;
