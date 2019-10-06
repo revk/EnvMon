@@ -16,3 +16,6 @@
 [submodule "components/ESP32-OLED"]
 	path = components/ESP32-OLED
 	url = https://github.com/revk/ESP32-OLED
+[submodule "PCBCase"]
+	path = PCBCase
+	url = https://github.com/revk/PCBCase
