@@ -12,6 +12,7 @@ const char TAG[] = "CO2";
 #include "oled.h"
 
 #include "logo.h"
+#include "fan.h"
 // Setting for "logo" is 32x32 bytes (4 bits per pixel)
 // Note that MQTT config needs to allow a large enough message for the logo
 #define LOGOW   32
@@ -71,7 +72,6 @@ static owb_rmt_driver_info rmt_driver_info;
 static DS18B20_Info *ds18b20s[MAX_OWB] = { 0 };
 
 static volatile uint8_t oled_update = 0;
-static volatile uint8_t oled_contrast = 0;
 static volatile uint8_t oled_changed = 1;
 static volatile uint8_t oled_dark = 0;
 
@@ -115,7 +115,7 @@ sendall (void)
 const char *
 app_command (const char *tag, unsigned int len, const unsigned char *value)
 {
-   if (!strcmp (tag, "send"))
+   if (!strcmp (tag, "send") || !strcmp (tag, "connect"))
    {
       sendall ();
       return "";
@@ -123,11 +123,13 @@ app_command (const char *tag, unsigned int len, const unsigned char *value)
    if (!strcmp (tag, "night"))
    {
       oled_dark = 1;
+      oled_set_contrast (0);
       return "";
    }
    if (!strcmp (tag, "day"))
    {
       oled_dark = 0;
+      oled_set_contrast (oledcontrast);
       return "";
    }
    if (!strcmp (tag, "contrast"))
@@ -362,7 +364,6 @@ app_main ()
       if (p == sizeof (logo))
          memcpy (logo, aalogo, sizeof (logo));  // default
    }
-   oled_contrast = oledcontrast;        // Initial contrast
    if (co2sda >= 0 && co2scl >= 0)
    {
       co2port = 0;
@@ -393,6 +394,7 @@ app_main ()
       revk_error ("OLED", "Clash");
    else if (oledsda >= 0 && oledscl >= 0)
       oled_start (1, oledaddress, oledscl, oledsda, 1 - oledflip);
+   oled_set_contrast (oledcontrast);
    if (co2port >= 0)
       revk_task ("CO2", co2_task, NULL);
    if (ds18b20 >= 0)
@@ -435,25 +437,26 @@ app_main ()
    float showrh = -1000;
    while (1)
    {
-      // Fan control
-      const char *fan = NULL;
-      if (thisco2 > fanco2 && lastfan != 1)
-      {
-         fan = fanon;
-         lastfan = 1;
-      } else if (thisco2 < fanco2 && lastfan != 0)
-      {
-         fan = fanoff;
-         lastfan = 0;
-      }
-      if (fan && *fan)
-      {
-         char *topic = strdup (fan);
-         char *data = strchr (topic, ' ');
-         if (data)
-            *data++ = 0;
-         revk_raw (NULL, topic, data ? strlen (data) : 0, data, 0);
-         free (topic);
+      {                         // Fan control
+         const char *fan = NULL;
+         if (thisco2 > fanco2 && lastfan != 1)
+         {
+            fan = fanon;
+            lastfan = 1;
+         } else if (thisco2 < fanco2 && lastfan != 0)
+         {
+            fan = fanoff;
+            lastfan = 0;
+         }
+         if (fan && *fan)
+         {
+            char *topic = strdup (fan);
+            char *data = strchr (topic, ' ');
+            if (data)
+               *data++ = 0;
+            revk_raw (NULL, topic, data ? strlen (data) : 0, data, 0);
+            free (topic);
+         }
       }
       // Next second
       usleep (1000000LL - (esp_timer_get_time () % 1000000LL));
@@ -479,7 +482,7 @@ app_main ()
       if (showlogo)
       {
          showlogo = 0;
-         oled_icon (CONFIG_OLED_WIDTH - LOGOW, 10, logo, LOGOW, LOGOH);
+         oled_icon (CONFIG_OLED_WIDTH - LOGOW, 12, logo, LOGOW, LOGOH);
       }
       if (now != showtime)
       {
@@ -514,6 +517,8 @@ app_main ()
          x = oled_text (4, 0, y, s);
          oled_text (1, x, y + 9, "CO2");
          x = oled_text (-1, x, y, "ppm");
+         if (fanco2)
+            oled_icon (CONFIG_OLED_WIDTH - LOGOW * 2 - 4, 12, showco2 > fanco2 ? fan : NULL, LOGOW, LOGOH);
       }
       y -= space;               // Space
       y -= 35;
@@ -558,8 +563,6 @@ app_main ()
          oled_text (1, x, y + 8, "R");
          x = oled_text (1, x, y, "H");
       }
-      if (fanco2)
-         oled_text (3, 58, y, thisco2 > fanco2 ? "*" : " ");
       y -= space;
       oled_unlock ();
    }
