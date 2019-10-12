@@ -21,7 +21,7 @@ module pcb(s=0)
         esp32(s,26.170,10.448,-90);        
         if(display)
         {
-            oled(s,1,1,d=6,h=9,nopads=true);
+            oled(s,1,1,d=6.5,h=9,nopads=true);
             pads(5.443,9.89,ny=4);
         }
         d24v5f3(s,30,21,180);
