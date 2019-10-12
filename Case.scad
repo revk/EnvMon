@@ -21,7 +21,7 @@ module pcb(s=0)
         esp32(s,26.170,10.448,-90);        
         if(display)
         {
-            oled(s,1,1,d=6.5,h=9,nopads=true);
+            oled(s,1,1,d=6.8,h=9,nopads=true);
             pads(5.443,9.89,ny=4);
         }
         d24v5f3(s,30,21,180);
@@ -32,12 +32,12 @@ module pcb(s=0)
         smd1206(s,13.735,9.010);
         smd1206(s,18.135,9.010);
         pads(34.05,35.287,nx=2);
-        // Power cable.
+        switch66(s,22.940,2.270,90);
+        // DC power cable.
         translate([32.598,36.560-4,-2-1.6])
         cube([5.192,1.44+4,2]);
         translate([32.598,36.560,-2-1.6])
         cube([5.192,1.44,22+1.6]);
-        switch66(s,22.940,2.270,90);
     }
 }
 
