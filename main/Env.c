@@ -559,7 +559,7 @@ app_main ()
          else
             sprintf (s, "%2d", (int) showrh);
          x = oled_text (3, 0, y, s);
-         x = oled_text (2, x, y, "%");
+         x = oled_text (2, x, y, "%%");
          oled_text (1, x, y + 8, "R");
          x = oled_text (1, x, y, "H");
       }
