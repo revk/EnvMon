@@ -47,7 +47,7 @@ const char TAG[] = "CO2";
 
 #define u32(n,d)	uint32_t n;
 #define s8(n,d)	int8_t n;
-#define u8(n,d)	int8_t n;
+#define u8(n,d)	uint8_t n;
 #define b(n) uint8_t n;
 #define s(n) char * n;
 settings
