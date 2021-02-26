@@ -459,11 +459,11 @@ void app_main()
          uint32_t thismC = thistemp * 1000;
          if (thismC > heattemp && lastheat != 1)
          {
-            heat = heaton;
+            heat = heatoff;
             lastheat = 1;
          } else if (thismC < heattemp && lastheat != 0)
          {
-            heat = heatoff;
+            heat = heaton;
             lastheat = 0;
          }
          if (heat && *heat)
