@@ -44,8 +44,10 @@ const char TAG[] = "CO2";
 	s(fanon)	\
 	s(fanoff)	\
 	u32(fanco2,1000)	\
+	u32(fanresend,3600)	\
 	s(heaton)	\
 	s(heatoff)	\
+	u32(heatresend,3600)	\
 	u32(heatdaymC,1000000)	\
 	u32(heatnightmC,1000000)	\
 
@@ -432,7 +434,11 @@ void app_main()
    float showrh = -1000;
    while (1)
    {
+      time_t now = time(0);
       {                         // Fan control
+         static time_t timefan = 0;
+         if (fanresend && timefan + fanresend < now)
+            lastfan = -1;
          const char *fan = NULL;
          if (thisco2 > fanco2 && lastfan != 1)
          {
@@ -445,6 +451,7 @@ void app_main()
          }
          if (fan && *fan)
          {
+            timefan = now;
             char *topic = strdup(fan);
             char *data = strchr(topic, ' ');
             if (data)
@@ -454,6 +461,9 @@ void app_main()
          }
       }
       {                         // Heat control
+         static time_t timeheat = 0;
+         if (heatresend && timeheat + heatresend < now)
+            lastheat = -1;
          const char *heat = NULL;
          uint32_t heattemp = (oled_dark ? heatnightmC : heatdaymC);
          uint32_t thismC = thistemp * 1000;
@@ -468,6 +478,7 @@ void app_main()
          }
          if (heat && *heat)
          {
+            timeheat = now;
             char *topic = strdup(heat);
             char *data = strchr(topic, ' ');
             if (data)
@@ -481,7 +492,6 @@ void app_main()
       // Display
       oled_lock();
       char s[30];
-      time_t now = time(0);
       if (oled_dark)
       {                         // Night mode, just time
          oled_clear();
