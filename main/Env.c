@@ -435,6 +435,7 @@ void app_main()
    while (1)
    {
       time_t now = time(0);
+      if (*fanon || *fanoff)
       {                         // Fan control
          static time_t timefan = 0;
          if (fanresend && timefan + fanresend < now)
@@ -460,31 +461,35 @@ void app_main()
             free(topic);
          }
       }
+      if (*heaton || *heatoff)
       {                         // Heat control
-         static time_t timeheat = 0;
-         if (heatresend && timeheat + heatresend < now)
-            lastheat = -1;
-         const char *heat = NULL;
          uint32_t heattemp = (oled_dark ? heatnightmC : heatdaymC);
-         uint32_t thismC = thistemp * 1000;
-         if (thismC > heattemp && lastheat != 1)
-         {
-            heat = heatoff;
-            lastheat = 1;
-         } else if (thismC < heattemp && lastheat != 0)
-         {
-            heat = heaton;
-            lastheat = 0;
-         }
-         if (heat && *heat)
-         {
-            timeheat = now;
-            char *topic = strdup(heat);
-            char *data = strchr(topic, ' ');
-            if (data)
-               *data++ = 0;
-            revk_raw(NULL, topic, data ? strlen(data) : 0, data, 0);
-            free(topic);
+         if (heattemp != 1000000 || lastheat == 1)
+         {                      // We have a reference temp to work with or we left on
+            static time_t timeheat = 0;
+            if (heatresend && timeheat + heatresend < now)
+               lastheat = -1;
+            const char *heat = NULL;
+            uint32_t thismC = thistemp * 1000;
+            if (thismC > heattemp && lastheat != 1)
+            {
+               heat = heatoff;
+               lastheat = 1;
+            } else if (thismC < heattemp && lastheat != 0)
+            {
+               heat = heaton;
+               lastheat = 0;
+            }
+            if (heat && *heat)
+            {
+               timeheat = now;
+               char *topic = strdup(heat);
+               char *data = strchr(topic, ' ');
+               if (data)
+                  *data++ = 0;
+               revk_raw(NULL, topic, data ? strlen(data) : 0, data, 0);
+               free(topic);
+            }
          }
       }
       // Next second
