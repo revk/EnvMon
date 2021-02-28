@@ -25,6 +25,7 @@ const char TAG[] = "CO2";
 #define	MAX_OWB	8
 #define DS18B20_RESOLUTION   (DS18B20_RESOLUTION_12_BIT)
 
+#define	HEATMAX	1000000
 #define settings	\
 	s8(co2sda,17)	\
 	s8(co2scl,16)	\
@@ -48,8 +49,8 @@ const char TAG[] = "CO2";
 	s(heaton)	\
 	s(heatoff)	\
 	u32(heatresend,3600)	\
-	u32(heatdaymC,1000000)	\
-	u32(heatnightmC,1000000)	\
+	u32(heatdaymC,HEATMAX)	\
+	u32(heatnightmC,HEATMAX)	\
 
 #define u32(n,d)	uint32_t n;
 #define s8(n,d)	int8_t n;
@@ -464,21 +465,21 @@ void app_main()
       if (*heaton || *heatoff)
       {                         // Heat control
          uint32_t heattemp = (oled_dark ? heatnightmC : heatdaymC);
-         if (heattemp != 1000000 || lastheat == 1)
+         if (heattemp != HEATMAX || lastheat == 1)
          {                      // We have a reference temp to work with or we left on
             static time_t timeheat = 0;
             if (heatresend && timeheat + heatresend < now)
                lastheat = -1;
             const char *heat = NULL;
             uint32_t thismC = thistemp * 1000;
-            if (thismC > heattemp && lastheat != 1)
+            if ((heattemp == HEATMAX || thismC > heattemp) && lastheat != 0)
             {
                heat = heatoff;
-               lastheat = 1;
-            } else if (thismC < heattemp && lastheat != 0)
+               lastheat = 0;
+            } else if (thismC < heattemp && lastheat != 1)
             {
                heat = heaton;
-               lastheat = 0;
+               lastheat = 1;
             }
             if (heat && *heat)
             {
