@@ -14,91 +14,500 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L RF_Module:ESP32-WROOM-32 U2
-U 1 1 6040A9D3
-P 5550 3650
-F 0 "U2" H 5550 5231 50  0000 C CNN
-F 1 "ESP32-WROOM-32" H 5550 5140 50  0000 C CNN
-F 2 "RF_Module:ESP32-WROOM-32" H 5550 2150 50  0001 C CNN
-F 3 "https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_datasheet_en.pdf" H 5250 3700 50  0001 C CNN
-	1    5550 3650
-	1    0    0    -1  
-$EndComp
-$Comp
-L Connector:USB_C_Receptacle_USB2.0 J6
-U 1 1 6040ECF7
-P 8850 3200
-F 0 "J6" H 8957 4067 50  0000 C CNN
-F 1 "USB-C" H 8957 3976 50  0000 C CNN
-F 2 "" H 9000 3200 50  0001 C CNN
-F 3 "https://www.usb.org/sites/default/files/documents/usb_type-c.zip" H 9000 3200 50  0001 C CNN
-	1    8850 3200
-	1    0    0    -1  
-$EndComp
-$Comp
-L Connector:Conn_01x02_Female J5
-U 1 1 6041953F
-P 2500 3550
-F 0 "J5" H 2528 3526 50  0000 L CNN
-F 1 "12V power" H 2528 3435 50  0000 L CNN
-F 2 "" H 2500 3550 50  0001 C CNN
-F 3 "~" H 2500 3550 50  0001 C CNN
-	1    2500 3550
-	1    0    0    -1  
-$EndComp
-$Comp
-L Connector:Conn_01x04_Male J1
-U 1 1 6040AA34
-P 2350 4500
-F 0 "J1" H 2458 4781 50  0000 C CNN
-F 1 "CO2 sensor" H 2458 4690 50  0000 C CNN
-F 2 "" H 2350 4500 50  0001 C CNN
-F 3 "~" H 2350 4500 50  0001 C CNN
-	1    2350 4500
-	1    0    0    -1  
-$EndComp
-$Comp
-L RevK:D24V5F3 U1
-U 1 1 6042C825
-P 2600 6300
-F 0 "U1" H 2968 6211 50  0000 L CNN
-F 1 "D24V5F3" H 2968 6120 50  0000 L CNN
-F 2 "RevK:D24V5F3" H 2600 6500 50  0001 C CNN
-F 3 "https://www.pololu.com/product/2842/resources" H 2600 6500 50  0001 C CNN
-	1    2600 6300
-	1    0    0    -1  
-$EndComp
-$Comp
-L RevK:OLED1.5 U?
-U 1 1 604359F8
-P 2350 5150
-F 0 "U?" H 3119 4861 50  0000 L CNN
-F 1 "OLED1.5" H 3119 4770 50  0000 L CNN
-F 2 "RevK:OLED1.5" H 2350 5250 50  0001 C CNN
-F 3 "" H 2350 5250 50  0001 C CNN
-	1    2350 5150
-	1    0    0    -1  
-$EndComp
-$Comp
-L Sensor_Temperature:DS18B20 U?
+L Sensor_Temperature:DS18B20 J1
 U 1 1 60437DCC
-P 5250 6900
-F 0 "U?" H 5020 6946 50  0000 R CNN
-F 1 "DS18B20" H 5020 6855 50  0000 R CNN
-F 2 "Package_TO_SOT_THT:TO-92_Inline" H 4250 6650 50  0001 C CNN
-F 3 "http://datasheets.maximintegrated.com/en/ds/DS18B20.pdf" H 5100 7150 50  0001 C CNN
-	1    5250 6900
+P 2500 6150
+F 0 "J1" H 2270 6196 50  0000 R CNN
+F 1 "DS18B20" H 2270 6105 50  0000 R CNN
+F 2 "Connector_Molex:Molex_SPOX_5268-03A_1x03_P2.50mm_Horizontal" H 1500 5900 50  0001 C CNN
+F 3 "http://datasheets.maximintegrated.com/en/ds/DS18B20.pdf" H 2350 6400 50  0001 C CNN
+	1    2500 6150
 	1    0    0    -1  
 $EndComp
 $Comp
-L RevK:Prog J?
+L RevK:Prog J2
 U 1 1 6043AD11
-P 2400 2250
-F 0 "J?" H 2769 2161 50  0000 L CNN
-F 1 "Prog" H 2769 2070 50  0000 L CNN
-F 2 "Connector_Molex:Molex_SPOX_5268-04A_1x04_P2.50mm_Horizontal" H 2400 2500 50  0001 C CNN
-F 3 "" H 2400 2500 50  0001 C CNN
-	1    2400 2250
+P 3750 2100
+F 0 "J2" H 4119 2011 50  0000 L CNN
+F 1 "Prog" H 4119 1920 50  0000 L CNN
+F 2 "Connector_Molex:Molex_SPOX_5268-04A_1x04_P2.50mm_Horizontal" H 3750 2350 50  0001 C CNN
+F 3 "" H 3750 2350 50  0001 C CNN
+	1    3750 2100
 	1    0    0    -1  
 $EndComp
+$Comp
+L RevK:SCD30 M1
+U 1 1 60410F81
+P 4350 3800
+F 0 "M1" H 4819 3511 50  0000 L CNN
+F 1 "SCD30" H 4819 3420 50  0000 L CNN
+F 2 "RevK:SCD30" H 4350 3850 50  0001 C CNN
+F 3 "https://media.digikey.com/pdf/Data%20Sheets/Sensirion%20PDFs/CD_DS_SCD30_Datasheet_D1.pdf" H 4350 3850 50  0001 C CNN
+	1    4350 3800
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R R3
+U 1 1 60412FCB
+P 7800 3500
+F 0 "R3" H 7870 3546 50  0000 L CNN
+F 1 "5K1" H 7870 3455 50  0000 L CNN
+F 2 "Resistor_SMD:R_1206_3216Metric_Pad1.30x1.75mm_HandSolder" V 7730 3500 50  0001 C CNN
+F 3 "~" H 7800 3500 50  0001 C CNN
+	1    7800 3500
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R R1
+U 1 1 60413EED
+P 2800 5850
+F 0 "R1" H 2870 5896 50  0000 L CNN
+F 1 "4K7" H 2870 5805 50  0000 L CNN
+F 2 "Resistor_SMD:R_1206_3216Metric_Pad1.30x1.75mm_HandSolder" V 2730 5850 50  0001 C CNN
+F 3 "~" H 2800 5850 50  0001 C CNN
+	1    2800 5850
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R R2
+U 1 1 60415B36
+P 7500 3500
+F 0 "R2" H 7570 3546 50  0000 L CNN
+F 1 "5K1" H 7570 3455 50  0000 L CNN
+F 2 "Resistor_SMD:R_1206_3216Metric_Pad1.30x1.75mm_HandSolder" V 7430 3500 50  0001 C CNN
+F 3 "~" H 7500 3500 50  0001 C CNN
+	1    7500 3500
+	1    0    0    -1  
+$EndComp
+$Comp
+L RevK:D24V5F3 M3
+U 1 1 6042C825
+P 8250 4250
+F 0 "M3" H 8618 4161 50  0000 L CNN
+F 1 "D24V5F3" H 8618 4070 50  0000 L CNN
+F 2 "RevK:D24V5F3" H 8250 4450 50  0001 C CNN
+F 3 "https://www.pololu.com/product/2842/resources" H 8250 4450 50  0001 C CNN
+	1    8250 4250
+	1    0    0    -1  
+$EndComp
+$Comp
+L Switch:SW_Push SW1
+U 1 1 6041A9AC
+P 3100 1850
+F 0 "SW1" H 3100 2135 50  0000 C CNN
+F 1 "GPIO0" H 3100 2044 50  0000 C CNN
+F 2 "Button_Switch_THT:SW_PUSH_6mm_H4.3mm" H 3100 2050 50  0001 C CNN
+F 3 "~" H 3100 2050 50  0001 C CNN
+	1    3100 1850
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8050 3350 7800 3350
+Wire Wire Line
+	8100 3300 7500 3300
+Wire Wire Line
+	7500 3300 7500 3350
+Wire Wire Line
+	8100 4350 8250 4350
+$Comp
+L power:+3.3V #PWR013
+U 1 1 6044258E
+P 7700 4500
+F 0 "#PWR013" H 7700 4350 50  0001 C CNN
+F 1 "+3.3V" H 7715 4673 50  0000 C CNN
+F 2 "" H 7700 4500 50  0001 C CNN
+F 3 "" H 7700 4500 50  0001 C CNN
+	1    7700 4500
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8250 4450 7950 4450
+Wire Wire Line
+	7950 4450 7950 3650
+Wire Wire Line
+	7950 3650 7800 3650
+Wire Wire Line
+	7800 3650 7500 3650
+Connection ~ 7800 3650
+Wire Wire Line
+	7500 3650 7350 3650
+Connection ~ 7500 3650
+Wire Wire Line
+	8250 4550 7700 4550
+Wire Wire Line
+	7700 4550 7700 4500
+Wire Wire Line
+	7350 3650 7350 4850
+Wire Wire Line
+	7350 4850 8250 4850
+Wire Wire Line
+	8100 4150 9100 4150
+Wire Wire Line
+	9100 4150 9100 5200
+Wire Wire Line
+	9100 5200 8250 5200
+Wire Wire Line
+	8250 5200 8250 4950
+Wire Wire Line
+	8100 4150 8100 4350
+$Comp
+L power:GND #PWR02
+U 1 1 60448A67
+P 2300 4650
+F 0 "#PWR02" H 2300 4400 50  0001 C CNN
+F 1 "GND" H 2305 4477 50  0000 C CNN
+F 2 "" H 2300 4650 50  0001 C CNN
+F 3 "" H 2300 4650 50  0001 C CNN
+	1    2300 4650
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2900 1800 2900 1850
+Connection ~ 2900 1850
+Wire Wire Line
+	2900 1850 2900 2050
+$Comp
+L power:GND #PWR05
+U 1 1 6045E8D0
+P 3300 1850
+F 0 "#PWR05" H 3300 1600 50  0001 C CNN
+F 1 "GND" H 3305 1677 50  0000 C CNN
+F 2 "" H 3300 1850 50  0001 C CNN
+F 3 "" H 3300 1850 50  0001 C CNN
+	1    3300 1850
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	1700 1850 1700 2050
+NoConn ~ 1700 2250
+NoConn ~ 1700 2350
+NoConn ~ 1700 3250
+NoConn ~ 1700 3350
+NoConn ~ 1700 3450
+NoConn ~ 1700 3550
+NoConn ~ 1700 3650
+NoConn ~ 1700 3750
+Wire Wire Line
+	2500 5850 2500 5700
+Wire Wire Line
+	2500 5700 2800 5700
+Wire Wire Line
+	2800 6000 2800 6150
+$Comp
+L power:+3.3V #PWR03
+U 1 1 60469648
+P 2500 5700
+F 0 "#PWR03" H 2500 5550 50  0001 C CNN
+F 1 "+3.3V" H 2515 5873 50  0000 C CNN
+F 2 "" H 2500 5700 50  0001 C CNN
+F 3 "" H 2500 5700 50  0001 C CNN
+	1    2500 5700
+	1    0    0    -1  
+$EndComp
+Connection ~ 2500 5700
+$Comp
+L power:GND #PWR04
+U 1 1 6046AE91
+P 2500 6450
+F 0 "#PWR04" H 2500 6200 50  0001 C CNN
+F 1 "GND" H 2505 6277 50  0000 C CNN
+F 2 "" H 2500 6450 50  0001 C CNN
+F 3 "" H 2500 6450 50  0001 C CNN
+	1    2500 6450
+	1    0    0    -1  
+$EndComp
+Text Label 3200 3450 0    50   ~ 0
+TEMP
+Wire Wire Line
+	2800 6150 3050 6150
+Connection ~ 2800 6150
+Text Label 3050 6150 0    50   ~ 0
+TEMP
+Wire Wire Line
+	3300 1850 3750 1850
+Wire Wire Line
+	3750 1850 3750 2100
+Connection ~ 3300 1850
+Wire Wire Line
+	2300 1850 1750 1850
+$Comp
+L RF_Module:ESP32-WROOM-32 U1
+U 1 1 6040A9D3
+P 2300 3250
+F 0 "U1" H 2300 4831 50  0000 C CNN
+F 1 "ESP32-WROOM-32" H 2300 4764 50  0000 C CNN
+F 2 "RF_Module:ESP32-WROOM-32" H 2300 1750 50  0001 C CNN
+F 3 "https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_datasheet_en.pdf" H 2000 3300 50  0001 C CNN
+	1    2300 3250
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	2900 2150 3550 2150
+Wire Wire Line
+	3550 2150 3550 2400
+Wire Wire Line
+	3550 2400 3750 2400
+Wire Wire Line
+	3750 2300 4000 2300
+Wire Wire Line
+	4000 2300 4000 2550
+Wire Wire Line
+	4000 2550 3150 2550
+Wire Wire Line
+	3150 2550 3150 2350
+Wire Wire Line
+	3150 2350 2900 2350
+$Comp
+L power:+3.3V #PWR011
+U 1 1 6047842D
+P 4350 5050
+F 0 "#PWR011" H 4350 4900 50  0001 C CNN
+F 1 "+3.3V" H 4365 5223 50  0000 C CNN
+F 2 "" H 4350 5050 50  0001 C CNN
+F 3 "" H 4350 5050 50  0001 C CNN
+	1    4350 5050
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR08
+U 1 1 604787F8
+P 4150 5050
+F 0 "#PWR08" H 4150 4800 50  0001 C CNN
+F 1 "GND" H 4155 4877 50  0000 C CNN
+F 2 "" H 4150 5050 50  0001 C CNN
+F 3 "" H 4150 5050 50  0001 C CNN
+	1    4150 5050
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4150 5050 4250 5050
+Wire Wire Line
+	4250 5050 4250 5150
+Wire Wire Line
+	4250 5150 4350 5150
+Wire Wire Line
+	2900 3050 3800 3050
+Wire Wire Line
+	2900 3150 3750 3150
+Wire Wire Line
+	3800 3050 3800 4050
+Wire Wire Line
+	3800 4050 4350 4050
+Wire Wire Line
+	3750 3150 3750 4150
+Wire Wire Line
+	3750 4150 4350 4150
+$Comp
+L power:+3.3V #PWR010
+U 1 1 60483572
+P 4350 3850
+F 0 "#PWR010" H 4350 3700 50  0001 C CNN
+F 1 "+3.3V" H 4365 4023 50  0000 C CNN
+F 2 "" H 4350 3850 50  0001 C CNN
+F 3 "" H 4350 3850 50  0001 C CNN
+	1    4350 3850
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR07
+U 1 1 60484412
+P 4100 3750
+F 0 "#PWR07" H 4100 3500 50  0001 C CNN
+F 1 "GND" H 4105 3577 50  0000 C CNN
+F 2 "" H 4100 3750 50  0001 C CNN
+F 3 "" H 4100 3750 50  0001 C CNN
+	1    4100 3750
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4100 3750 4250 3750
+Wire Wire Line
+	4250 3750 4250 3950
+Wire Wire Line
+	4250 3950 4350 3950
+Wire Wire Line
+	2900 2550 3050 2550
+Wire Wire Line
+	3050 2550 3050 2800
+Wire Wire Line
+	3050 2800 5200 2800
+Wire Wire Line
+	5200 2800 5200 4650
+Wire Wire Line
+	5200 4650 3700 4650
+Wire Wire Line
+	3700 4650 3700 5350
+Wire Wire Line
+	3700 5350 4350 5350
+Wire Wire Line
+	2900 3350 3200 3350
+Wire Wire Line
+	3200 3350 3200 3450
+Wire Wire Line
+	2900 3250 3650 3250
+Wire Wire Line
+	3650 3250 3650 5450
+Wire Wire Line
+	3650 5450 4350 5450
+Wire Wire Line
+	4350 4350 4300 4350
+Wire Wire Line
+	4300 4350 4300 4500
+Wire Wire Line
+	4300 4500 5050 4500
+Wire Wire Line
+	5050 4500 5050 2950
+Wire Wire Line
+	5050 2950 2900 2950
+Wire Wire Line
+	4350 4250 4200 4250
+Wire Wire Line
+	4200 4250 4200 4550
+Wire Wire Line
+	4200 4550 5100 4550
+$Comp
+L power:+3.3V #PWR01
+U 1 1 604B0DBA
+P 2300 1400
+F 0 "#PWR01" H 2300 1250 50  0001 C CNN
+F 1 "+3.3V" H 2315 1573 50  0000 C CNN
+F 2 "" H 2300 1400 50  0001 C CNN
+F 3 "" H 2300 1400 50  0001 C CNN
+	1    2300 1400
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	1750 1850 1750 1400
+Wire Wire Line
+	1750 1400 2300 1400
+Connection ~ 1750 1850
+Wire Wire Line
+	1750 1850 1700 1850
+$Comp
+L power:+3.3V #PWR06
+U 1 1 604B4311
+P 3600 2100
+F 0 "#PWR06" H 3600 1950 50  0001 C CNN
+F 1 "+3.3V" H 3615 2273 50  0000 C CNN
+F 2 "" H 3600 2100 50  0001 C CNN
+F 3 "" H 3600 2100 50  0001 C CNN
+	1    3600 2100
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3600 2100 3600 2200
+Wire Wire Line
+	3600 2200 3750 2200
+NoConn ~ 2900 2650
+NoConn ~ 2900 2750
+NoConn ~ 2900 2250
+NoConn ~ 2900 4350
+NoConn ~ 2900 4250
+NoConn ~ 2900 4150
+NoConn ~ 2900 4050
+NoConn ~ 2900 3950
+NoConn ~ 2900 3850
+NoConn ~ 2900 3450
+NoConn ~ 4350 4450
+Wire Wire Line
+	2900 2850 5100 2850
+Wire Wire Line
+	5100 2850 5100 4550
+NoConn ~ 8250 4250
+$Comp
+L RevK:12V J3
+U 1 1 604E837E
+P 8250 4850
+F 0 "J3" H 8568 4861 50  0000 L CNN
+F 1 "12V" H 8568 4770 50  0000 L CNN
+F 2 "Connector_Molex:Molex_SPOX_5268-02A_1x02_P2.50mm_Horizontal" H 8250 5000 50  0001 C CNN
+F 3 "" H 8250 5000 50  0001 C CNN
+	1    8250 4850
+	1    0    0    -1  
+$EndComp
+NoConn ~ 2900 2450
+NoConn ~ 5100 4200
+$Comp
+L power:GND #PWR012
+U 1 1 60513066
+P 7350 5050
+F 0 "#PWR012" H 7350 4800 50  0001 C CNN
+F 1 "GND" H 7355 4877 50  0000 C CNN
+F 2 "" H 7350 5050 50  0001 C CNN
+F 3 "" H 7350 5050 50  0001 C CNN
+	1    7350 5050
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8100 4150 8100 3850
+Wire Wire Line
+	8100 3850 8550 3850
+Connection ~ 8100 4150
+Wire Wire Line
+	8050 3650 8550 3650
+Wire Wire Line
+	8050 3350 8050 3650
+Wire Wire Line
+	8100 3550 8550 3550
+Wire Wire Line
+	8100 3300 8100 3550
+NoConn ~ 5850 -900
+$Comp
+L Connector:USB_C_Receptacle_USB2.0 J4
+U 1 1 6042EDB6
+P 9150 3250
+F 0 "J4" H 8720 3097 50  0000 R CNN
+F 1 "USB-C" H 8720 3188 50  0000 R CNN
+F 2 "RevK:USC16-TR-Round" H 9300 3250 50  0001 C CNN
+F 3 "https://www.usb.org/sites/default/files/documents/usb_type-c.zip" H 9300 3250 50  0001 C CNN
+	1    9150 3250
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	7350 3650 7350 2350
+Wire Wire Line
+	7350 2350 9150 2350
+Connection ~ 7350 3650
+Wire Wire Line
+	9150 2350 9450 2350
+Connection ~ 9150 2350
+Wire Wire Line
+	7350 4850 7350 5050
+Connection ~ 7350 4850
+NoConn ~ 8550 2650
+NoConn ~ 8550 2750
+NoConn ~ 8550 3050
+NoConn ~ 8550 3150
+NoConn ~ 8550 3250
+NoConn ~ 8550 3350
+$Comp
+L power:GND #PWR09
+U 1 1 60423739
+P 4200 5850
+F 0 "#PWR09" H 4200 5600 50  0001 C CNN
+F 1 "GND" H 4205 5677 50  0000 C CNN
+F 2 "" H 4200 5850 50  0001 C CNN
+F 3 "" H 4200 5850 50  0001 C CNN
+	1    4200 5850
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4350 5850 4200 5850
+NoConn ~ 2900 3550
+NoConn ~ 2900 3650
+NoConn ~ 2900 3750
+NoConn ~ -2700 800 
+$Comp
+L RevK:OLED1.5-I2C M2
+U 1 1 60444D7D
+P 4350 5050
+F 0 "M2" H 5118 4711 50  0000 L CNN
+F 1 "OLED1.5-I2C" H 5118 4620 50  0000 L CNN
+F 2 "RevK:OLED1.5-I2C" H 4350 5150 50  0001 C CNN
+F 3 "" H 4350 5150 50  0001 C CNN
+	1    4350 5050
+	1    0    0    -1  
+$EndComp
+Text Label 9100 4150 0    50   ~ 0
+VBUS
 $EndSCHEMATC

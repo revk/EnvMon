@@ -1,0 +1,17 @@
+(module AJK (layer F.Cu) (tedit 60411AF0)
+  (fp_text reference REF** (at 0 0) (layer F.SilkS) hide
+    (effects (font (size 1 1) (thickness 0.15)))
+  )
+  (fp_text value AJK (at -1.27 1.27) (layer F.Fab) hide
+    (effects (font (size 1 1) (thickness 0.15)))
+  )
+  (fp_line (start 1.27 -6.35) (end -0.49471 -4.29118) (layer F.Cu) (width 0.2))
+  (fp_line (start -0.4947 -4.291) (end -1.9653 -4.291) (layer F.Cu) (width 0.2))
+  (fp_line (start -0.49471 -4.29118) (end 1.27 -2.23235) (layer F.Cu) (width 0.2))
+  (fp_line (start -1.749926 -1.712421) (end -1.965288 -2.23235) (layer F.Cu) (width 0.2))
+  (fp_line (start -0.710062 -1.712421) (end -1.229994 -1.49706) (layer F.Cu) (width 0.2))
+  (fp_line (start -1.229994 -1.49706) (end -1.749926 -1.712421) (layer F.Cu) (width 0.2))
+  (fp_line (start -0.4947 -6.35) (end -0.4947 -2.23235) (layer F.Cu) (width 0.2))
+  (fp_line (start -0.4947 -2.23235) (end -0.710062 -1.712421) (layer F.Cu) (width 0.2))
+  (fp_line (start -3.43588 -2.23235) (end -0.4947 -6.35) (layer F.Cu) (width 0.2))
+)
