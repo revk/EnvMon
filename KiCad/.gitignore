@@ -1,8 +1,7 @@
 fp-info-cache
+fp-lib-table
 EnvMon-cache.lib
 *-bak
-*.gbr
 *.gbrjob
-*.drl
 *.net
 *.zip
