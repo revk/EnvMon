@@ -241,22 +241,6 @@ F 3 "https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_
 	1    2300 3250
 	1    0    0    -1  
 $EndComp
-Wire Wire Line
-	2900 2150 3550 2150
-Wire Wire Line
-	3550 2150 3550 2400
-Wire Wire Line
-	3550 2400 3750 2400
-Wire Wire Line
-	3750 2300 4000 2300
-Wire Wire Line
-	4000 2300 4000 2550
-Wire Wire Line
-	4000 2550 3150 2550
-Wire Wire Line
-	3150 2550 3150 2350
-Wire Wire Line
-	3150 2350 2900 2350
 $Comp
 L power:+3.3V #PWR011
 U 1 1 6047842D
@@ -510,4 +494,16 @@ F 3 "" H 4350 5150 50  0001 C CNN
 $EndComp
 Text Label 9100 4150 0    50   ~ 0
 VBUS
+Wire Wire Line
+	2900 2150 3400 2150
+Wire Wire Line
+	3400 2150 3400 2300
+Wire Wire Line
+	3400 2300 3750 2300
+Wire Wire Line
+	2900 2350 3400 2350
+Wire Wire Line
+	3400 2350 3400 2400
+Wire Wire Line
+	3400 2400 3750 2400
 $EndSCHEMATC
