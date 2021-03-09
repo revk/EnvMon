@@ -1,3 +1,0 @@
-(sym_lib_table
-  (lib (name EnvMon-rescue)(type Legacy)(uri ${KIPRJMOD}/EnvMon-rescue.lib)(options "")(descr ""))
-)
