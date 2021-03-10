@@ -1,5 +1,7 @@
 Environmental monitoring with OLED display working over MQTT
 
+Note that this is the original version, designed for 1.5 mono OLED display.
+
 * Uses ESP32-RevK library for MQTT/settings
 * Uses 128x128 1.5" OLED display
 * Uses SCD30 CO2 sensor
